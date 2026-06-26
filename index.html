@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CultureBot — Exploring Cultural Heritage Collections with Large Language Models</title>
+<meta name="description" content="CultureBot is a reusable, knowledge-graph-guided framework for natural-language exploration of cultural heritage collections, combining structured retrieval, textual search, and source-linked generation." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏺</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- decorative meander backdrop -->
+<svg class="meander-defs" width="0" height="0">
+  <defs>
+    <pattern id="meander" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M0 20 H10 V0 H30 V20 H40 M10 20 V30 H30 V20" fill="none" stroke="currentColor" stroke-width="2"/>
+    </pattern>
+  </defs>
+</svg>
+
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="brand" href="#top">
+      <span class="brand-mark" aria-hidden="true">⌗</span>
+      <span class="brand-name">Culture<em>Bot</em></span>
+    </a>
+    <nav class="nav-links">
+      <a href="#overview">Overview</a>
+      <a href="#pipeline">Pipeline</a>
+      <a href="#dataset">Dataset</a>
+      <a href="#evaluation">Evaluation</a>
+      <a href="#citation">Citation</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="btn btn-ghost" href="https://searchculture.gr" target="_blank" rel="noopener">SearchCulture ↗</a>
+      <a class="btn btn-primary" href="https://culturebot.ails.ece.ntua.gr" target="_blank" rel="noopener">Live Demo</a>
+    </div>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="hero-inner">
+      <p class="eyebrow">A framework for natural-language access to cultural heritage data</p>
+      <h1 class="title">Culture<em>Bot</em></h1>
+      <p class="subtitle">Exploring Cultural Heritage Collections with Large Language Models</p>
+      <p class="lede">
+        Cultural heritage records are not flat documents — they encode relations between objects, places,
+        periods, providers, and rights. CultureBot grounds natural-language queries in a cultural knowledge
+        graph, fuses structured and textual retrieval, and generates answers that stay linked to the original
+        repository records.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary btn-lg" href="https://culturebot.ails.ece.ntua.gr" target="_blank" rel="noopener">
+          Try the Live Demo
+        </a>
+        <a class="btn btn-outline btn-lg disabled" href="#citation" aria-disabled="true" title="Preprint in preparation">
+          Read the Paper <span class="soon">— coming soon</span>
+        </a>
+      </div>
+      <p class="hero-note">Instantiated on SearchCulture · 81,852 cultural records · Hellenic Ministry of Culture</p>
+    </div>
+    <div class="hero-divider" aria-hidden="true">
+      <svg viewBox="0 0 1440 60" preserveAspectRatio="none"><path d="M0,40 C360,90 1080,-10 1440,40 L1440,60 L0,60 Z"></path></svg>
+    </div>
+  </section>
+
+  <!-- STATS STRIP -->
+  <section class="stats">
+    <div class="stats-inner">
+      <div class="stat"><span class="stat-num">81,852</span><span class="stat-label">cultural records indexed</span></div>
+      <div class="stat"><span class="stat-num">12</span><span class="stat-label">expert-defined personas</span></div>
+      <div class="stat"><span class="stat-num">52</span><span class="stat-label">expert-crafted queries</span></div>
+      <div class="stat"><span class="stat-num">6</span><span class="stat-label">domain experts</span></div>
+      <div class="stat"><span class="stat-num">208</span><span class="stat-label">expert answer evaluations</span></div>
+    </div>
+  </section>
+
+  <!-- OVERVIEW -->
+  <section class="section" id="overview">
+    <div class="section-inner">
+      <span class="kicker">Why CultureBot</span>
+      <h2 class="h2">Cultural inquiry doesn't fit a search box</h2>
+      <div class="grid-2">
+        <div class="panel">
+          <h3>The mismatch</h3>
+          <p>
+            Digital heritage collections bring together objects, images, archival descriptions, and
+            institutional metadata from many providers — formalized through models like the
+            <strong>Europeana Data Model (EDM)</strong> and <strong>CIDOC&nbsp;CRM</strong>. Yet most users
+            still access this richness through keyword search and faceted filters, which force them to think
+            like the catalogue rather than ask the relational, interpretive questions they actually have:
+            <em>which objects relate to a place and period, how artefacts differ across providers, what themes
+            emerge across a set of records.</em>
+          </p>
+          <p>
+            Cultural records also carry evidential weight and provenance — dates are approximate, attributions
+            uncertain, places historically ambiguous. A fluent but unsupported generated answer can create
+            misleading historical connections and sever the link between users and the institutions that hold
+            the originals.
+          </p>
+        </div>
+        <div class="panel panel-accent">
+          <h3>The approach</h3>
+          <p>
+            CultureBot is a <strong>reusable framework</strong> for natural-language exploration of cultural
+            heritage data, built around three commitments:
+          </p>
+          <ul class="check-list">
+            <li><strong>Structured + textual retrieval, unified.</strong> Queries about places, periods, object
+              types, providers, or images are handled through the same pipeline.</li>
+            <li><strong>Generation as navigation, not replacement.</strong> Answers cite supporting records and
+              guide users back to the original repository pages.</li>
+            <li><strong>Repository-independent design.</strong> Built for any EDM-style collection, not tied to
+              one institution or dataset.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PIPELINE -->
+  <section class="section section-dark" id="pipeline">
+    <div class="section-inner">
+      <span class="kicker kicker-light">Architecture</span>
+      <h2 class="h2 h2-light">From a question to a grounded, sourced answer</h2>
+      <p class="section-lede">
+        Given a natural-language query, CultureBot grounds it against a cultural knowledge graph, retrieves
+        records through structured metadata relations <em>and</em> hybrid textual search, fuses the two, and
+        generates a source-linked answer — never sending the raw query straight to a language model.
+      </p>
+
+      <div class="flow" role="img" aria-label="CultureBot pipeline diagram">
+        <div class="flow-col">
+          <div class="flow-node flow-node-data">
+            <span class="flow-icon">🗂️</span>
+            <span class="flow-title">Cultural Data</span>
+            <span class="flow-sub">EDM-style collection</span>
+          </div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-col flow-col-parallel">
+          <div class="flow-node">
+            <span class="flow-icon">🕸️</span>
+            <span class="flow-title">Knowledge-Graph Retrieval</span>
+            <span class="flow-sub">Grounded entities → validated Cypher → structured records</span>
+          </div>
+          <div class="flow-node">
+            <span class="flow-icon">🔎</span>
+            <span class="flow-title">Textual Retrieval</span>
+            <span class="flow-sub">Hybrid lexical (BM25) + semantic (FAISS) search</span>
+          </div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-col">
+          <div class="flow-node flow-node-fusion">
+            <span class="flow-icon">🧬</span>
+            <span class="flow-title">Retrieval Fusion</span>
+            <span class="flow-sub">Merge, dedupe, attach metadata + text</span>
+          </div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-col">
+          <div class="flow-node flow-node-answer">
+            <span class="flow-icon">📜</span>
+            <span class="flow-title">Source-Linked Answer</span>
+            <span class="flow-sub">Cited records, abstains when unsupported</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-3 method-grid">
+        <div class="method-card">
+          <h4>1 · Query Grounding</h4>
+          <p>User terms (e.g. <em>“Thessaloniki area”</em>) are fuzzy-matched against the graph and external
+            vocabularies to surface candidate places, providers, and museums <em>before</em> any query is
+            generated — so the model grounds itself in entities that actually exist.</p>
+        </div>
+        <div class="method-card">
+          <h4>2 · Validated Cypher Generation</h4>
+          <p>An LLM translates the grounded query into read-only Cypher. Every query is checked for syntax,
+            blocked write/admin operations, and verified against Neo4j with <code>EXPLAIN</code> before it is
+            ever executed.</p>
+        </div>
+        <div class="method-card">
+          <h4>3 · Hybrid Textual Scoring</h4>
+          <p>Lexical and dense retrieval are combined into a single relevance score:</p>
+          <div class="formula">s(q, r) = α · s<sub>lex</sub>(q, r) + (1 − α) · s<sub>sem</sub>(q, r)</div>
+          <p class="formula-note">Lexical retrieval anchors names, dates, and identifiers; dense retrieval
+            captures paraphrase and thematic similarity.</p>
+        </div>
+      </div>
+
+      <div class="safety-note">
+        <span class="safety-icon">🛡️</span>
+        <p>Generated graph queries are conservative by construction: they must start with
+          <code>MATCH</code>/<code>OPTIONAL MATCH</code>, contain a <code>RETURN</code> clause, and pass a
+          read-only safety check that rejects <code>CREATE</code>, <code>MERGE</code>, <code>DELETE</code>,
+          <code>SET</code>, <code>DROP</code>, <code>LOAD CSV</code>, and write-oriented APOC procedures —
+          a query that fails validation is never run.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- DATASET / IMPLEMENTATION -->
+  <section class="section" id="dataset">
+    <div class="section-inner">
+      <span class="kicker">Instance</span>
+      <h2 class="h2">Running on SearchCulture</h2>
+      <p class="section-lede">
+        CultureBot is repository-independent by design, and is currently instantiated on
+        <a href="https://searchculture.gr" target="_blank" rel="noopener">SearchCulture</a> data covering the
+        movable monuments of the Directorate of Mobile Monuments, Hellenic Ministry of Culture.
+      </p>
+      <div class="grid-3">
+        <div class="card">
+          <h4>Graph layer</h4>
+          <p>Structured metadata projected into a <strong>Neo4j</strong> property graph — <code>Object</code>,
+            <code>Place</code>, <code>TimeSpan</code>, <code>Concept</code>, <code>Provider</code>,
+            <code>Aggregation</code>, <code>Image</code>, <code>Rights</code>, <code>SourceURI</code> — enriched
+            with external vocabularies and place hierarchies.</p>
+        </div>
+        <div class="card">
+          <h4>Textual layer</h4>
+          <p>A hybrid <strong>FAISS + BM25</strong> index over record renderings, deduplicated and combined with
+            reciprocal rank fusion. Embeddings: <code>text-embedding-3-large</code>.</p>
+        </div>
+        <div class="card">
+          <h4>Serving layer</h4>
+          <p>Deployed as an <strong>OpenWebUI</strong> pipeline with configurable retrieval modes —
+            <code>kg</code>, <code>rag</code>, and the default <code>hybrid</code> — and runtime valves for
+            model, context size, and retrieval depth.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EVALUATION -->
+  <section class="section section-muted" id="evaluation">
+    <div class="section-inner">
+      <span class="kicker">Evaluation design</span>
+      <h2 class="h2">Tested by the people who use these collections</h2>
+      <p class="section-lede">
+        Six domain experts — archaeologists and cultural heritage researchers — defined 12 realistic personas
+        and authored 52 evaluation queries spanning factual lookup, spatial exploration, thematic comparison,
+        object selection, image-oriented requests, and multi-step reasoning.
+      </p>
+
+      <div class="compare-row">
+        <div class="compare-card">ChatGPT</div>
+        <div class="compare-card">Gemini</div>
+        <div class="compare-card compare-card-mid">CultureBot <span>no graph</span></div>
+        <div class="compare-card compare-card-highlight">CultureBot <span>full, graph-guided</span></div>
+      </div>
+
+      <div class="grid-2 eval-grid">
+        <div class="panel">
+          <h3>Per-query, per-system</h3>
+          <p>Each of the 52 queries was answered by all four systems and rated by an expert against the
+            originating persona — 208 expert answer evaluations in total. A parallel query-level assessment
+            captured how hard each query would be to answer through manual SearchCulture search, and how long
+            that would take.</p>
+        </div>
+        <div class="panel">
+          <h3>Rubric dimensions</h3>
+          <div class="tag-cloud">
+            <span>Hallucination</span><span>Query relevance</span><span>Evidence grounding</span>
+            <span>Justification quality</span><span>Clarity</span><span>Result usefulness</span>
+            <span>Bias</span><span>Diversity</span><span>Completeness</span><span>Logical steps</span>
+            <span>Usefulness vs. manual search</span><span>Need for further search</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="status-note">
+        <span class="status-dot"></span>
+        Quantitative results from this expert study are being finalized and will be reported alongside the
+        full preprint.
+      </p>
+    </div>
+  </section>
+
+  <!-- CITATION -->
+  <section class="section" id="citation">
+    <div class="section-inner">
+      <span class="kicker">Cite this work</span>
+      <h2 class="h2">Citation</h2>
+      <p class="section-lede">The preprint is in preparation — a BibTeX entry will be published here once it is available.</p>
+      <pre class="bibtex"><code>@misc{culturebot,
+  title  = {CultureBot: Exploring Cultural Heritage Collections
+            with Large Language Models},
+  author = {TBD},
+  year   = {2026},
+  note   = {Preprint in preparation}
+}</code></pre>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="brand-mark" aria-hidden="true">⌗</span>
+      <span>Culture<em>Bot</em></span>
+    </div>
+    <div class="footer-links">
+      <a href="https://culturebot.ails.ece.ntua.gr" target="_blank" rel="noopener">Live Demo</a>
+      <a href="https://searchculture.gr" target="_blank" rel="noopener">SearchCulture</a>
+      <a href="#citation">Citation</a>
+    </div>
+    <p class="footer-note">Page in preparation — paper, code, and full evaluation results to follow.</p>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
