@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>CultureBot — Exploring Cultural Heritage Collections with Large Language Models</title>
 <meta name="description" content="CultureBot is a reusable, knowledge-graph-guided framework for natural-language exploration of cultural heritage collections, combining structured retrieval, textual search, and source-linked generation." />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c2438'/%3E%3Ccircle cx='32' cy='27' r='14' fill='none' stroke='%23e7c878' stroke-width='2.4'/%3E%3Ccircle cx='27' cy='26' r='4.6' fill='%23e7c878'/%3E%3Ccircle cx='37' cy='26' r='4.6' fill='%23e7c878'/%3E%3Cpath d='M22 41c0 9 4 11 10 11s10-2 10-11' fill='none' stroke='%23e7c878' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23242426'/%3E%3Ccircle cx='32' cy='27' r='14' fill='none' stroke='%23cac7c0' stroke-width='2.4'/%3E%3Ccircle cx='27' cy='26' r='4.6' fill='%23cac7c0'/%3E%3Ccircle cx='37' cy='26' r='4.6' fill='%23cac7c0'/%3E%3Cpath d='M22 41c0 9 4 11 10 11s10-2 10-11' fill='none' stroke='%23cac7c0' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -29,7 +29,10 @@
       <a href="#citation">Citation</a>
     </nav>
     <div class="nav-cta">
-      <a class="btn btn-ghost" href="https://searchculture.gr" target="_blank" rel="noopener">SearchCulture ↗</a>
+      <a class="btn btn-ghost" href="https://github.com/geofila/CultureBot" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8 5 12 9 16"/><path d="M15 8 19 12 15 16"/></svg>
+        Code
+      </a>
       <a class="btn btn-primary" href="https://culturebot.ails.ece.ntua.gr" target="_blank" rel="noopener">Live Demo</a>
     </div>
     <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
@@ -45,28 +48,25 @@
     <div class="hero-bg" aria-hidden="true"></div>
     <div class="hero-inner">
       <div class="emblem" aria-hidden="true">
-        <svg class="emblem-art" viewBox="0 0 120 120">
-          <circle class="emblem-node" cx="22" cy="34" r="2.6"/>
-          <circle class="emblem-node" cx="98" cy="34" r="2.6"/>
-          <circle class="emblem-node" cx="60" cy="14" r="2.6"/>
-          <path class="emblem-line" d="M22 34 L52 40 M98 34 L68 40 M60 14 L60 36"/>
-          <path class="emblem-tuft" d="M45 30 L51 16 L57 30 Z"/>
-          <path class="emblem-tuft" d="M63 30 L69 16 L75 30 Z"/>
-          <circle class="emblem-head" cx="60" cy="46" r="25"/>
-          <circle class="emblem-eye" cx="50" cy="45" r="9.5"/>
-          <circle class="emblem-eye" cx="70" cy="45" r="9.5"/>
-          <circle class="emblem-pupil" cx="50" cy="45" r="3.6"/>
-          <circle class="emblem-pupil" cx="70" cy="45" r="3.6"/>
-          <path class="emblem-beak" d="M56 55 L64 55 L60 62 Z"/>
-          <path class="emblem-body" d="M40 70
-            C32 78 28 86 28 96
-            C28 106 36 110 60 110
-            C84 110 92 106 92 96
-            C92 86 88 78 80 70
-            C73 75 47 75 40 70 Z"/>
-          <path class="emblem-handle" d="M40 76 C26 80 24 92 34 98"/>
-          <path class="emblem-handle" d="M80 76 C94 80 96 92 86 98"/>
-          <path class="emblem-key" d="M44 94 h6 v-6 h6 v6 h6 v-6 h6 v6 h6"/>
+        <svg class="emblem-art" viewBox="0 0 100 124">
+          <path class="owl-tuft" d="M41 27 L45 16 L48 27 Z"/>
+          <path class="owl-tuft" d="M52 27 L55 16 L59 27 Z"/>
+          <path class="owl-body" d="M50 26 C40 26 34 36 34 50 C34 62 37 70 50 70 C63 70 66 62 66 50 C66 36 60 26 50 26 Z"/>
+          <path class="owl-wing" d="M35.5 48 C33.5 55 34 63 38 69"/>
+          <path class="owl-wing" d="M64.5 48 C66.5 55 66 63 62 69"/>
+          <circle class="owl-eye" cx="43" cy="44" r="5.4"/>
+          <circle class="owl-eye" cx="57" cy="44" r="5.4"/>
+          <circle class="owl-pupil" cx="43" cy="44" r="1.7"/>
+          <circle class="owl-pupil" cx="57" cy="44" r="1.7"/>
+          <path class="owl-beak" d="M47 52 L53 52 L50 57 Z"/>
+          <rect class="col-capital" x="30" y="74" width="40" height="6" rx="1"/>
+          <path class="col-volute" d="M30 80 q-7 0 -7 7 q0 5 5 5"/>
+          <path class="col-volute" d="M70 80 q7 0 7 7 q0 5 -5 5"/>
+          <path class="col-shaft" d="M39 80 L43 110 L57 110 L61 80 Z"/>
+          <line class="col-flute" x1="46" y1="82" x2="45" y2="108"/>
+          <line class="col-flute" x1="50" y1="80" x2="50" y2="110"/>
+          <line class="col-flute" x1="54" y1="82" x2="55" y2="108"/>
+          <rect class="col-base" x="34" y="110" width="32" height="6" rx="1"/>
         </svg>
       </div>
       <p class="eyebrow">A framework for natural-language access to cultural heritage data</p>
@@ -82,10 +82,12 @@
         <a class="btn btn-primary btn-lg" href="https://culturebot.ails.ece.ntua.gr" target="_blank" rel="noopener">
           Try the Live Demo
         </a>
-        <a class="btn btn-outline btn-lg disabled" href="#citation" aria-disabled="true" title="Preprint in preparation">
-          Read the Paper <span class="soon">— coming soon</span>
+        <a class="btn btn-outline btn-lg" href="https://github.com/geofila/CultureBot" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8 5 12 9 16"/><path d="M15 8 19 12 15 16"/></svg>
+          View the Code
         </a>
       </div>
+      <a class="hero-paper-link" href="#citation">Read the Paper →</a>
       <p class="hero-note">Instantiated on SearchCulture · 81,852 cultural records · Hellenic Ministry of Culture</p>
     </div>
     <div class="hero-divider" aria-hidden="true">
@@ -355,6 +357,7 @@
     </div>
     <div class="footer-links">
       <a href="https://culturebot.ails.ece.ntua.gr" target="_blank" rel="noopener">Live Demo</a>
+      <a href="https://github.com/geofila/CultureBot" target="_blank" rel="noopener">Code</a>
       <a href="https://searchculture.gr" target="_blank" rel="noopener">SearchCulture</a>
       <a href="#citation">Citation</a>
     </div>
