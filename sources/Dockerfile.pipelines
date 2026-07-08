@@ -1,0 +1,30 @@
+FROM ghcr.io/open-webui/pipelines:main
+
+# Force uninstall ALL torch packages, then install CUDA version
+RUN pip uninstall -y torch torchvision torchaudio torch-cpu || true && \
+    pip cache purge && \
+    pip install --no-cache-dir --force-reinstall \
+    torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 && \
+    pip install --no-cache-dir \
+    sentence-transformers \
+    langchain \
+    langchain-community \
+    langchain-huggingface \
+    langchain-text-splitters \
+    langchain-core \
+    faiss-cpu \
+    rank_bm25 \
+    neo4j \
+    pypdf
+
+# Verify torch version (CUDA check happens at runtime)
+RUN python -c "import torch; print('Torch version:', torch.__version__)"
+
+COPY pipelines/SearchCultureBot.py /app/pipelines/SearchCultureBot.py
+COPY pipelines/KGSearchCultureBot_v2.py /app/pipelines/KGSearchCultureBot_v2.py
+COPY pipelines/sc_kg_nl2cypher.py /app/pipelines/kg_jsons/sc_kg_nl2cypher.py
+
+# No valves.json is baked into the image: all credentials come from environment
+# variables at runtime (see compose.yml / .env), and behavioural valves fall back to
+# the defaults defined in each pipeline's Valves class. Tune them live from the
+# Open WebUI admin panel (Admin Panel → Pipelines) after startup.

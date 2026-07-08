@@ -1,0 +1,16 @@
+{
+  "source_html": "page.html",
+  "advanced_search_controls": [
+    {
+      "id": "portalSearches0.booleanOperator",
+      "name": "portalSearches[0].booleanOperator",
+      "label": "",
+      "data_url": "",
+      "options": [
+        { "value": "AND", "label": "ΚΑΙ" },
+        { "value": "OR", "label": "'Η" },
+        { "value": "NOT", "label": "ΌΧΙ" }
+      ]
+    }
+  ]
+}

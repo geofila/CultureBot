@@ -1,0 +1,48 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# SearchCultureBot — files that must NOT be committed to the public repo
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Secrets ──────────────────────────────────────────────────────────────────
+.env
+*.env
+!.env.example
+
+# A live pipeline valves file can capture per-deployment tweaks/credentials — never
+# commit one. (The pipeline runs fine without it, using its coded defaults.)
+**/valves.json
+
+# ── Python bytecode ──────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ── Confidential RAG / KG source data ────────────────────────────────────────
+# Users must supply their own dataset (see dataset/README.md). Everything in
+# dataset/ is ignored EXCEPT the docs and the *.example.* format samples.
+/dataset/*
+!/dataset/.gitkeep
+!/dataset/README.md
+!/dataset/*.example.jsonl
+!/dataset/*.example.md
+!/dataset/kg_jsons/
+/dataset/kg_jsons/*
+!/dataset/kg_jsons/.gitkeep
+!/dataset/kg_jsons/*.example.json
+
+# ── Open WebUI runtime data (DB, chats, uploads, vector store, model cache) ───
+# This holds user accounts, password hashes, conversations and embedded data.
+# Docker recreates data/open-webui/ automatically on first `docker compose up`.
+/data/*
+!/data/.gitkeep
+
+# ── Pipeline build/index caches ──────────────────────────────────────────────
+**/cache/
+*.faiss
+*.pkl
+
+# ── OS / editor cruft ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.log

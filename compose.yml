@@ -1,0 +1,114 @@
+# SearchCultureBot — Open WebUI + RAG/KG Pipelines
+#
+# All secrets are read from a local .env file (see .env.example). Nothing
+# sensitive is hard-coded here. Copy .env.example to .env and fill it in before
+# running `docker compose up -d`.
+#
+# The `${VAR:?message}` syntax makes compose refuse to start if a required
+# secret is missing, instead of silently running with an empty value.
+
+services:
+  # ── Open WebUI: the chat frontend ────────────────────────────────────────────
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    ports:
+      - "127.0.0.1:12012:8080"  # Bound to localhost only; put a reverse proxy in front for public access
+    volumes:
+      - ./data/open-webui:/app/backend/data
+    environment:
+      # Model backend for direct (non-pipeline) chat. Optional — the RAG pipeline
+      # itself calls the OpenAI API, so this only matters if you enable Ollama below.
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      # Security settings
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:?set WEBUI_SECRET_KEY in .env}
+      - WEBUI_AUTH=${WEBUI_AUTH:-true}
+      - ENABLE_SIGNUP=${ENABLE_SIGNUP:-true}
+      - DEFAULT_USER_ROLE=${DEFAULT_USER_ROLE:-pending}  # New users need admin approval
+      - WEBUI_SESSION_COOKIE_SECURE=${WEBUI_SESSION_COOKIE_SECURE:-false}
+      - WEBUI_SESSION_COOKIE_SAME_SITE=${WEBUI_SESSION_COOKIE_SAME_SITE:-lax}
+      # Rate limiting
+      - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-false}
+      - RATE_LIMIT_REQUESTS_PER_MINUTE=${RATE_LIMIT_REQUESTS_PER_MINUTE:-20}
+      # Disable features that may leak data in a public deployment
+      - ENABLE_COMMUNITY_SHARING=${ENABLE_COMMUNITY_SHARING:-false}
+      - SAFE_MODE=${SAFE_MODE:-false}
+    restart: unless-stopped
+
+  # ── Pipelines: the RAG + Knowledge-Graph backend ─────────────────────────────
+  pipelines:
+    # Build the image locally from ./sources (recommended for a public clone).
+    build:
+      context: ./sources
+      dockerfile: Dockerfile.pipelines
+    # Alternatively, pull a pre-built image from your own registry and comment out
+    # the `build:` block above:
+    # image: your-registry.example.com/searchculturebot-pipelines:latest
+    container_name: pipelines
+    ports:
+      - "127.0.0.1:12011:9099"  # Bound to localhost only for security
+    # ── Data volumes: BRING YOUR OWN DATA ───────────────────────────────────────
+    # This repo ships WITHOUT the dataset — it is confidential. Add your own files to
+    # ./dataset/ (see dataset/README.md for the exact filenames and formats), then
+    # UNCOMMENT the block below before running `docker compose up`. The pipeline needs
+    # the four "required" mounts to work; the rest are optional.
+    #
+    # volumes:
+    #   # Required by the pipeline:
+    #   - ./dataset/puretext_chunks.jsonl:/app/pipelines/puretext_chunks.jsonl   # KG path: id -> text lookup
+    #   - ./dataset/puretext_chunks.md:/app/pipelines/puretext_chunks.md         # RAG path: FAISS + BM25 index
+    #   - ./dataset/kg_jsons/searchculture_places_taxonomy.json:/app/pipelines/kg_jsons/searchculture_places_taxonomy.json
+    #   - ./dataset/kg_jsons/searchculture_filters_from_page.json:/app/pipelines/kg_jsons/searchculture_filters_from_page.json
+    #   # Optional (not read by the current pipeline code — raw alternates / source PDF):
+    #   - ./dataset/naive_chunks.jsonl:/app/pipelines/naive_chunks.jsonl
+    #   - ./dataset/naive_chunks.md:/app/pipelines/naive_chunks.md
+    #   - ./dataset/Ottoman-NewENG-2024print2.pdf:/app/pipelines/Ottoman-NewENG-2024print2.pdf
+    environment:
+      # Auth token Open WebUI uses to talk to this pipelines server
+      - PIPELINES_API_KEY=${PIPELINES_API_KEY:?set PIPELINES_API_KEY in .env}
+      # LLM + embeddings (OpenAI-compatible)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:?set OPENAI_API_KEY in .env}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5.5}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      # Neo4j Knowledge Graph (only needed for kg/hybrid query modes)
+      - NEO4J_URI=${NEO4J_URI:-neo4j://localhost:7687}
+      - NEO4J_USER=${NEO4J_USER:-neo4j}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-}
+    restart: unless-stopped
+
+  # ── Optional: local Ollama for open-source models in Open WebUI ──────────────
+  # The RAG pipeline uses the OpenAI API, so Ollama is only needed if you also want
+  # to chat with local models directly. Uncomment to enable, then set
+  # OLLAMA_BASE_URL=http://ollama:11434 in your .env.
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: ollama
+  #   ports:
+  #     - "127.0.0.1:11434:11434"
+  #   volumes:
+  #     - ./data/ollama:/root/.ollama
+  #   restart: unless-stopped
+
+  # ── Optional: internal auto-redeploy webhook (project-specific CI/CD) ─────────
+  # This service was used in the original private deployment to auto-redeploy on a
+  # push. It is tied to internal infrastructure (host paths, private registry) and
+  # is not needed to run the stack. Uncomment and adapt only if you replicate that
+  # setup, and set DEPLOY_AUTH_TOKEN in .env.
+  # deploy:
+  #   image: bitbool/docker-compose-deploy:2.4
+  #   privileged: true
+  #   environment:
+  #     - AUTH_TOKEN=${DEPLOY_AUTH_TOKEN:?set DEPLOY_AUTH_TOKEN in .env}
+  #     - COMPOSE_FILE=/data/searchculturebot/compose.yml
+  #   ports:
+  #     - 127.0.0.1:9998:9999
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     - /etc/docker/:/etc/docker/
+  #     - /root/.docker:/root/.docker
+  #     - /data/searchculturebot:/data/searchculturebot:rw
+  #   restart: unless-stopped
+  #   logging:
+  #     driver: syslog
+  #     options:
+  #       tag: docker-searchculturebot-deploy
