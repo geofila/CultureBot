@@ -31,9 +31,13 @@ description: |
       and MAX_CONTEXT_RECORDS/MAX_CONTEXT_CHARS raised so more of those matches can
       actually reach the final answer instead of being retrieved and then discarded.
 
-    Data sources (two separate files, two separate roles):
-    - puretext_chunks.jsonl  → KG path: {id, text} records for O(1) artifact lookup by ID
-    - puretext_chunks.md     → RAG path: Markdown text chunks for FAISS+BM25 semantic search
+    Data sources — discovered, not named. Everything under DATASET_DIR (default
+    /app/pipelines/dataset, mounted from ./dataset) is classified by file type:
+    - .md / .markdown  → RAG path: text chunks for FAISS+BM25 semantic search
+    - .pdf             → RAG path: text extracted per page, chunked like Markdown
+    - .jsonl / .ndjson → KG path: {id, text} records for O(1) artifact lookup by ID
+    - .json            → sniffed by shape: place taxonomy, filter vocabulary, or records
+    Filenames do not matter and subfolders are walked; see dataset_loader.py.
 
     Three query modes (QUERY_MODE valve):
     - hybrid: Both paths run; merged context → single streamed answer (default)
@@ -47,8 +51,8 @@ description: |
     - text-embedding-3-large                  (OpenAI API, 3072d, best quality)
 
     Disk cache (FAISS index + BM25 corpus) avoids full rebuild on restart.
-    Cache is keyed on embedding model + MD file mtime, so it invalidates automatically
-    when the source Markdown is updated.
+    Cache is keyed on the embedding model plus every dataset file in use, so it
+    invalidates automatically when a file is added, edited or removed.
 """
 
 import os
@@ -84,11 +88,16 @@ if _ASSETS_DIR not in sys.path:
     sys.path.insert(0, _ASSETS_DIR)
 
 from sc_kg_nl2cypher import (
-    load_places,
     build_cypher_prompt,
     validate_cypher_text,
     strip_code_fences,
 )
+
+# Filename-agnostic dataset discovery. Whatever the user drops into DATASET_DIR is
+# classified by extension (.md/.markdown, .jsonl/.ndjson, .json, .pdf) and, for .json,
+# by shape — so no file has to be named anything in particular. Deployed into the same
+# non-scanned kg_jsons/ helper dir as sc_kg_nl2cypher.py.
+from dataset_loader import discover as discover_dataset, Dataset
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -230,13 +239,26 @@ class Pipeline:
         )
 
         # ── Sources ──────────────────────────────────────────────────────────
-        JSONL_PATH: str = Field(
-            default="/app/pipelines/puretext_chunks.jsonl",
-            description='JSONL file for the KG path. Each line: {"id": "...", "text": "..."}',
+        DATASET_DIR: str = Field(
+            default=os.getenv("DATASET_DIR", "/app/pipelines/dataset"),
+            description=(
+                "Folder scanned for your data — mounted from ./dataset by compose.yml. "
+                "Every .md/.markdown, .jsonl/.ndjson, .json and .pdf inside it (subfolders "
+                "included) is picked up automatically; filenames do not matter."
+            ),
         )
-        MD_PATH: str = Field(
-            default="/app/pipelines/puretext_chunks.md",
-            description="Markdown file for the RAG path. Chunks are split on ## headers.",
+        RAG_SOURCES: Literal["auto", "text", "records", "all"] = Field(
+            default="auto",
+            description=(
+                "What the FAISS/BM25 index is built from. auto: Markdown/PDF text when you "
+                "supplied any, otherwise the JSON/JSONL records | text: Markdown/PDF only | "
+                "records: JSON/JSONL only | all: both (indexes the same item twice if your "
+                ".md and .jsonl are two views of one corpus)."
+            ),
+        )
+        EXTRA_FILES: str = Field(
+            default="",
+            description="Optional. Comma-separated paths to extra files outside DATASET_DIR.",
         )
 
         # ── Cache ────────────────────────────────────────────────────────────
@@ -307,6 +329,9 @@ class Pipeline:
         # Lazy clients — created on first use, re-created when credentials change
         self._openai_client: Optional[OpenAI] = None
         self._neo4j_driver = None
+
+        # Everything discovered under DATASET_DIR (files, records, text, places)
+        self.dataset: Optional[Dataset] = None
 
         # KG path: O(1) lookup by artifact ID
         self.records_by_id: Dict[str, Dict[str, Any]] = {}
@@ -403,24 +428,18 @@ class Pipeline:
 
     def _get_content_hash(self) -> str:
         """
-        Cache key for the RAG index = embedding model + MD path + retrieval settings + MD file metadata.
-        Keyed on MD_PATH because the FAISS/BM25 indexes are built from Markdown, not JSONL.
+        Cache key = embedding model + retrieval settings + every dataset file in use
+        (streamed content hash, or size+mtime when FAST_CONTENT_HASH). Adding, editing or
+        removing a file in the dataset folder therefore rebuilds the index by itself.
         """
-        source_path = self.valves.MD_PATH
-        hash_input = (
-            f"{self.valves.EMBEDDING_MODEL}|{source_path}|"
+        settings = (
+            f"{self.valves.EMBEDDING_MODEL}|{self.valves.RAG_SOURCES}|"
             f"{self.valves.TOP_K_SEMANTIC}|{self.valves.TOP_K_BM25}|"
             f"{self.valves.SEMANTIC_WEIGHT}|{self.valves.SEMANTIC_SCORE_MODE}"
         )
-        if os.path.exists(source_path):
-            if self.valves.FAST_CONTENT_HASH:
-                stat = os.stat(source_path)
-                mtime_ns = getattr(stat, "st_mtime_ns", int(stat.st_mtime * 1e9))
-                hash_input += f"|{mtime_ns}|{stat.st_size}"
-            else:
-                with open(source_path, "rb") as f:
-                    hash_input += "|" + hashlib.md5(f.read()).hexdigest()
-        return hashlib.md5(hash_input.encode()).hexdigest()[:16]
+        if self.dataset is None:
+            return hashlib.md5(settings.encode()).hexdigest()[:16]
+        return self.dataset.fingerprint(fast=self.valves.FAST_CONTENT_HASH, extra=settings)
 
     # ── Tokenization ──────────────────────────────────────────────────────────
 
@@ -434,97 +453,70 @@ class Pipeline:
 
     # ── Data loading ──────────────────────────────────────────────────────────
 
-    def _load_jsonl_records(self) -> None:
+    def _scan_dataset(self) -> None:
         """
-        Read puretext_chunks.jsonl into records_by_id for O(1) KG path lookup.
-        Only the KG path uses this dict — the RAG path indexes Markdown instead.
+        Discover whatever the user put in DATASET_DIR and sort it by type.
 
-        Supports {"id": "...", "text": "..."} and {"uri": "...", "text": "..."}.
+        Filenames are irrelevant — dataset_loader classifies each file by extension and,
+        for .json, by shape:
+          .md / .pdf        → the text corpus the FAISS/BM25 index is built from
+          .jsonl / .json    → {id → text} records for the Knowledge-Graph lookup
+          place taxonomy    → Cypher-prompt place candidates, wherever the file sits
+
+        Markdown sections that carry a URI also register as records, so the KG path still
+        has text to quote when the user supplied Markdown only.
         """
-        path = self.valves.JSONL_PATH
-        if not os.path.exists(path):
-            logger.warning(f"JSONL file not found: {path}")
-            return
+        extra = [part.strip() for part in (self.valves.EXTRA_FILES or "").split(",") if part.strip()]
+        self.dataset = discover_dataset(self.valves.DATASET_DIR, extra_paths=extra)
+        self.dataset.log_report(logger)
 
-        self.records_by_id = {}
+        self.records_by_id = self.dataset.records
+        # Empty list when the user has no place taxonomy: the Cypher prompt simply gets no
+        # place candidates, instead of the startup crash a missing file used to cause.
+        self.places = self.dataset.places
 
-        with open(path, "r", encoding="utf-8") as f:
-            for line_num, line in enumerate(f, start=1):
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    obj = json.loads(line)
-                except json.JSONDecodeError:
-                    if self.valves.DEBUG:
-                        logger.warning(f"Skipping invalid JSON at line {line_num}")
-                    continue
-
-                if not isinstance(obj, dict):
-                    continue
-
-                rec_id = str(obj.get("id") or obj.get("uri") or "").strip()
-                rec_text = str(
-                    obj.get("text") or obj.get("content") or
-                    obj.get("chunk_text") or obj.get("chunk") or ""
-                ).strip()
-
-                if not rec_id or not rec_text:
-                    if self.valves.DEBUG:
-                        logger.warning(f"Skipping incomplete record at line {line_num}")
-                    continue
-
-                self.records_by_id[rec_id] = {"id": rec_id, "text": rec_text}
-
-        logger.info(f"Loaded {len(self.records_by_id)} JSONL records for KG lookup")
-
-    def _load_md_documents(self) -> None:
+    def _build_documents(self) -> None:
         """
-        Read puretext_chunks.md into self.documents for FAISS/BM25 RAG indexing.
-        Splits on ## headers first; falls back to recursive character splitting.
-        Each chunk gets metadata: id (chunk_N), title (header text or chunk_N).
+        Turn every discovered text source into RAG chunks, split on Markdown headers.
+        PDF text arrives pre-formatted as '## <file> — page N' sections, so it chunks by
+        page through the same splitter with no special casing.
         """
         from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
 
-        path = self.valves.MD_PATH
-        if not os.path.exists(path):
-            logger.warning(f"Markdown file not found: {path}")
-            return
-
         self.documents = []
-
-        with open(path, "r", encoding="utf-8") as f:
-            content = f.read()
-
+        sources = self.dataset.rag_texts(self.valves.RAG_SOURCES) if self.dataset else []
         headers_to_split_on = [("#", "h1"), ("##", "h2"), ("###", "h3")]
-        try:
-            splitter = MarkdownHeaderTextSplitter(
-                headers_to_split_on=headers_to_split_on,
-                strip_headers=False,
-            )
-            chunks = splitter.split_text(content)
-        except Exception as e:
-            logger.warning(f"Header splitting failed ({e}), falling back to character splitter")
-            chunks = RecursiveCharacterTextSplitter(
-                chunk_size=1500, chunk_overlap=150,
-                separators=["\n\n", "\n", " "],
-            ).create_documents([content])
 
-        for i, chunk in enumerate(chunks):
-            text = chunk.page_content.strip()
-            if not text:
+        for source_name, content in sources:
+            if not content.strip():
                 continue
-            title = (
-                chunk.metadata.get("h2") or
-                chunk.metadata.get("h1") or
-                chunk.metadata.get("h3") or
-                f"chunk_{i}"
-            )
-            chunk.metadata["id"] = f"chunk_{i}"
-            chunk.metadata["title"] = title
-            self.documents.append(Document(page_content=text, metadata=chunk.metadata))
+            try:
+                splitter = MarkdownHeaderTextSplitter(
+                    headers_to_split_on=headers_to_split_on,
+                    strip_headers=False,
+                )
+                chunks = splitter.split_text(content)
+            except Exception as e:
+                logger.warning(f"Header splitting failed for {source_name} ({e}), using character splitter")
+                chunks = RecursiveCharacterTextSplitter(
+                    chunk_size=1500, chunk_overlap=150,
+                    separators=["\n\n", "\n", " "],
+                ).create_documents([content])
 
-        logger.info(f"Loaded {len(self.documents)} Markdown chunks for RAG")
+            for i, chunk in enumerate(chunks):
+                text = chunk.page_content.strip()
+                if not text:
+                    continue
+                metadata = dict(chunk.metadata)
+                metadata["id"] = f"{source_name}#{i}"
+                metadata["source"] = source_name
+                metadata["title"] = (
+                    metadata.get("h2") or metadata.get("h1") or
+                    metadata.get("h3") or source_name
+                )
+                self.documents.append(Document(page_content=text, metadata=metadata))
+
+        logger.info(f"Prepared {len(self.documents)} chunks for RAG from {len(sources)} source(s)")
 
     # ── Device selection ──────────────────────────────────────────────────────
 
@@ -636,7 +628,7 @@ class Pipeline:
 
     def _initialize(self) -> None:
         """
-        One-time setup: embedding model, JSONL loading, FAISS + BM25 indexes.
+        One-time setup: embedding model, dataset scan, FAISS + BM25 indexes.
         Re-runs automatically if EMBEDDING_MODEL valve changes between requests.
         """
         if self.initialized and self.current_embedding_model == self.valves.EMBEDDING_MODEL:
@@ -666,15 +658,11 @@ class Pipeline:
             )
         self.current_embedding_model = self.valves.EMBEDDING_MODEL
 
-        # KG path: always load JSONL records fresh (fast, no cache needed)
-        self._load_jsonl_records()
+        # Scan the dataset folder: records for the KG path, text for the RAG path and the
+        # place taxonomy for the Cypher prompt — all keyed on file type, not on filename.
+        self._scan_dataset()
 
-        # KG path: place taxonomy for Cypher-prompt candidates, loaded once and reused
-        # (sc_kg_nl2cypher.build_cypher_prompt re-reads disk every call if this is omitted).
-        self.places = load_places()
-        logger.info(f"Loaded {len(self.places)} places for Cypher prompt candidates")
-
-        # RAG path: build FAISS+BM25 from Markdown, using disk cache
+        # RAG path: build FAISS+BM25 from the discovered text sources, using disk cache
         cache_path = self._get_cache_path()
         content_hash = self._get_content_hash()
 
@@ -682,13 +670,16 @@ class Pipeline:
             self.initialized = True
             logger.info(
                 f"Ready from cache in {time.time() - start:.2f}s — "
-                f"{len(self.documents)} MD chunks, {len(self.records_by_id)} KG records"
+                f"{len(self.documents)} indexed chunks, {len(self.records_by_id)} KG records"
             )
             return
 
-        self._load_md_documents()
+        self._build_documents()
         if not self.documents:
-            logger.warning("No MD chunks loaded — check MD_PATH valve. KG path still available.")
+            logger.warning(
+                f"Nothing to index from {self.valves.DATASET_DIR}. "
+                f"The KG path still works if records were found."
+            )
             self.initialized = True
             return
 
@@ -702,7 +693,7 @@ class Pipeline:
         self.initialized = True
         logger.info(
             f"Ready in {time.time() - start:.2f}s — "
-            f"{len(self.documents)} MD chunks, {len(self.records_by_id)} KG records"
+            f"{len(self.documents)} indexed chunks, {len(self.records_by_id)} KG records"
         )
 
     # ── KG pipeline ───────────────────────────────────────────────────────────
@@ -1160,6 +1151,29 @@ and any other Greek term. If unsure, include both variants.
 
     # ── Pipeline entry point ──────────────────────────────────────────────────
 
+    def _dataset_report(self) -> str:
+        """Markdown summary of what the last scan found — shown to the user on a failure."""
+        if self.dataset is None:
+            return "_The dataset folder has not been scanned yet._"
+        lines = [f"**Scanned `{self.dataset.root}`**", ""]
+        if not self.dataset.files:
+            lines.append("_No files found._")
+        for src in self.dataset.files:
+            lines.append(f"- `{src.path.name}` → {src.kind}" + (f" ({src.detail})" if src.detail else ""))
+        return "\n".join(lines)
+
+    def _no_data_message(self) -> str:
+        return (
+            "❌ **No data found.**\n\n"
+            f"Put your files in the `dataset/` folder on the host (mounted at "
+            f"`{self.valves.DATASET_DIR}`) and restart the pipeline. Any filename works — "
+            "the type is what matters:\n"
+            "- `.md` / `.pdf` → searched by the RAG index\n"
+            "- `.jsonl` / `.json` → `{id, text}` records for the Knowledge-Graph path\n"
+            "- a `.json` list of place records → place taxonomy for Cypher\n\n"
+            + self._dataset_report()
+        )
+
     def pipe(
         self,
         user_message: str,
@@ -1191,14 +1205,21 @@ and any other Greek term. If unsure, include both variants.
                         mode = m.group(1).lower()
                     break
 
+        if not self.records_by_id and not self.documents:
+            yield self._no_data_message()
+            return
         if mode == "kg" and not self.records_by_id:
-            yield "❌ No JSONL records loaded for the KG path. Check JSONL_PATH in valves and restart."
+            yield (
+                "❌ No records for the Knowledge-Graph path. Add a .jsonl/.json file of "
+                "`{\"id\", \"text\"}` records to your dataset folder, or use `rag` mode.\n\n"
+                + self._dataset_report()
+            )
             return
         if mode == "rag" and not self.documents:
-            yield "❌ No Markdown chunks loaded for the RAG path. Check MD_PATH in valves and restart."
-            return
-        if mode == "hybrid" and not self.records_by_id and not self.documents:
-            yield "❌ Neither JSONL nor Markdown data loaded. Check JSONL_PATH and MD_PATH in valves."
+            yield (
+                "❌ Nothing indexed for the RAG path. Add a .md or .pdf file to your dataset "
+                "folder (any filename) and restart.\n\n" + self._dataset_report()
+            )
             return
 
         if mode == "kg":

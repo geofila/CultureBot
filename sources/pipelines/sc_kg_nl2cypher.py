@@ -285,13 +285,23 @@ def compact_terms(text: str) -> List[str]:
 
 
 def load_places(path: Path | str = PLACES_JSON) -> List[Dict[str, Any]]:
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    # Missing or malformed taxonomy is not fatal: the Cypher prompt then simply carries no
+    # place candidates. The pipelines normally pass places= explicitly (discovered from the
+    # dataset folder by dataset_loader), so this default path is for standalone/notebook use.
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (OSError, ValueError) as exc:
+        print(f"[sc_kg_nl2cypher] no place taxonomy at {path} ({exc}); continuing without one")
+        return []
 
 
 def load_filters(path: Path | str = FILTERS_JSON) -> Dict[str, Any]:
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
 
 
 # A node whose own name is explicitly named in the query is treated as a hierarchy

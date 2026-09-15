@@ -48,21 +48,16 @@ services:
     ports:
       - "127.0.0.1:12011:9099"  # Bound to localhost only for security
     # ── Data volumes: BRING YOUR OWN DATA ───────────────────────────────────────
-    # This repo ships WITHOUT the dataset — it is confidential. Add your own files to
-    # ./dataset/ (see dataset/README.md for the exact filenames and formats), then
-    # UNCOMMENT the block below before running `docker compose up`. The pipeline needs
-    # the four "required" mounts to work; the rest are optional.
-    #
-    # volumes:
-    #   # Required by the pipeline:
-    #   - ./dataset/puretext_chunks.jsonl:/app/pipelines/puretext_chunks.jsonl   # KG path: id -> text lookup
-    #   - ./dataset/puretext_chunks.md:/app/pipelines/puretext_chunks.md         # RAG path: FAISS + BM25 index
-    #   - ./dataset/kg_jsons/searchculture_places_taxonomy.json:/app/pipelines/kg_jsons/searchculture_places_taxonomy.json
-    #   - ./dataset/kg_jsons/searchculture_filters_from_page.json:/app/pipelines/kg_jsons/searchculture_filters_from_page.json
-    #   # Optional (not read by the current pipeline code — raw alternates / source PDF):
-    #   - ./dataset/naive_chunks.jsonl:/app/pipelines/naive_chunks.jsonl
-    #   - ./dataset/naive_chunks.md:/app/pipelines/naive_chunks.md
-    #   - ./dataset/Ottoman-NewENG-2024print2.pdf:/app/pipelines/Ottoman-NewENG-2024print2.pdf
+    # This repo ships WITHOUT a dataset. Drop your own files into ./dataset/ — any
+    # filenames, subfolders welcome — and the pipeline works out what each one is from
+    # its type: .md/.markdown and .pdf are indexed for search, .jsonl/.ndjson and .json
+    # are read as {id, text} records, and a .json list of place records is used as the
+    # place taxonomy for the Knowledge Graph. Nothing to uncomment, nothing to rename.
+    volumes:
+      - ./dataset:/app/pipelines/dataset:ro
+      # FAISS/BM25 index cache. Keeping it on the host means your corpus is embedded once
+      # instead of on every container rebuild (embeddings cost OpenAI credit).
+      - ./data/pipelines-cache:/app/pipelines/cache
     environment:
       # Auth token Open WebUI uses to talk to this pipelines server
       - PIPELINES_API_KEY=${PIPELINES_API_KEY:?set PIPELINES_API_KEY in .env}

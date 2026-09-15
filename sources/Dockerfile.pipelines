@@ -22,7 +22,16 @@ RUN python -c "import torch; print('Torch version:', torch.__version__)"
 
 COPY pipelines/SearchCultureBot.py /app/pipelines/SearchCultureBot.py
 COPY pipelines/KGSearchCultureBot_v2.py /app/pipelines/KGSearchCultureBot_v2.py
+
+# Helper modules go in kg_jsons/, NOT in the top-level pipelines dir: the OpenWebUI
+# pipelines server imports every top-level .py as a Pipeline, and a plain module with no
+# Pipeline class gets quarantined. Both pipelines add this dir to sys.path at import.
 COPY pipelines/sc_kg_nl2cypher.py /app/pipelines/kg_jsons/sc_kg_nl2cypher.py
+COPY pipelines/dataset_loader.py /app/pipelines/kg_jsons/dataset_loader.py
+
+# Mount point for the user's dataset (compose.yml bind-mounts ./dataset here). Created so
+# the pipelines start and report an empty dataset instead of failing when nothing is mounted.
+RUN mkdir -p /app/pipelines/dataset
 
 # No valves.json is baked into the image: all credentials come from environment
 # variables at runtime (see compose.yml / .env), and behavioural valves fall back to

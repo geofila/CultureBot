@@ -4,7 +4,9 @@ author: Ottobot (patched)
 version: 2.0.0
 description: |
     Hybrid RAG pipeline for OpenWebUI Pipelines.
-    Loads either Markdown or JSONL from SOURCE_PATH (auto-detect or forced).
+    Reads whatever is in the dataset folder (DATASET_DIR): .md/.markdown and .pdf
+    become the searchable text corpus, .jsonl/.json become records. Filenames are
+    irrelevant — each file is handled according to its type.
     Improvements over v1:
     - Uses OpenAI ChatGPT API instead of Ollama (set OPENAI_API_KEY)
     - Retrieves top-100 results (50 semantic + 50 BM25) for maximum coverage
@@ -17,6 +19,7 @@ description: |
 """
 
 import os
+import sys
 import json
 import pickle
 import hashlib
@@ -38,6 +41,15 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from rank_bm25 import BM25Okapi
+
+# Helper modules are deployed into the kg_jsons/ subdir rather than next to this file:
+# the OpenWebUI pipelines server imports every top-level .py in /app/pipelines as a
+# Pipeline, so a plain module up there would be quarantined. See Dockerfile.pipelines.
+_HELPERS_DIR = str(Path(__file__).resolve().parent / "kg_jsons")
+if _HELPERS_DIR not in sys.path:
+    sys.path.insert(0, _HELPERS_DIR)
+
+from dataset_loader import discover as discover_dataset, Dataset
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -134,9 +146,23 @@ class Pipeline:
         EMBEDDING_MODEL: str = Field(default=EmbeddingModel.OPENAI_SMALL.value)
 
         # ── Source selection ─────────────────────────────────────────────────
-        JSON_PATH: str = Field(default="/app/pipelines/puretext_chunks.jsonl")
-        SOURCE_PATH: str = Field(default="/app/pipelines/puretext_chunks.md")
-        SOURCE_FORMAT: str = Field(default="auto")  # auto|jsonl|markdown
+        # No fixed filenames: every .md/.markdown, .jsonl/.ndjson, .json and .pdf found
+        # under this folder (subfolders included) is picked up and handled by its type.
+        DATASET_DIR: str = Field(
+            default=os.getenv("DATASET_DIR", "/app/pipelines/dataset"),
+            description="Folder scanned for your data — mounted from ./dataset by compose.yml.",
+        )
+        RAG_SOURCES: str = Field(
+            default="auto",
+            description=(
+                "auto: index Markdown/PDF when present, otherwise the JSON/JSONL records | "
+                "text: Markdown/PDF only | records: JSON/JSONL only | all: both."
+            ),
+        )
+        EXTRA_FILES: str = Field(
+            default="",
+            description="Optional. Comma-separated paths to extra files outside DATASET_DIR.",
+        )
 
         # ── Cache ────────────────────────────────────────────────────────────
         CACHE_DIR: str = Field(default="/app/pipelines/cache/puretext_chunks")
@@ -173,6 +199,7 @@ class Pipeline:
     def __init__(self):
         self.name = "CultureBot"
         self.valves = self.Valves()
+        self.dataset: Optional[Dataset] = None
         self.documents: List[Document] = []
         self.vectorstore: Optional[FAISS] = None
         self.bm25: Optional[BM25Okapi] = None
@@ -210,48 +237,30 @@ class Pipeline:
         cache_dir.mkdir(parents=True, exist_ok=True)
         return cache_dir
 
-    def _get_source_path(self) -> str:
-        # Prefer SOURCE_PATH; fallback to JSON_PATH
-        sp = (self.valves.SOURCE_PATH or "").strip()
-        return sp if sp else self.valves.JSON_PATH
-
-    def _detect_source_format(self, source_path: str) -> str:
-        fmt = (self.valves.SOURCE_FORMAT or "auto").strip().lower()
-        if fmt in {"jsonl", "markdown"}:
-            return fmt
-        if source_path.lower().endswith((".md", ".markdown")):
-            return "markdown"
-        return "jsonl"
+    def _scan_dataset(self) -> Dataset:
+        """Discover the dataset folder and remember what was found."""
+        extra = [part.strip() for part in (self.valves.EXTRA_FILES or "").split(",") if part.strip()]
+        self.dataset = discover_dataset(self.valves.DATASET_DIR, extra_paths=extra)
+        self.dataset.log_report(logger)
+        return self.dataset
 
     def _get_content_hash(self) -> str:
         """
         Cache key includes:
         - embedding model
-        - source path + format
-        - relevant chunking/parsing parameters
-        - file metadata or content hash
-        """
-        source_path = self._get_source_path()
-        source_format = self._detect_source_format(source_path)
+        - which sources are indexed + the chunking/parsing parameters
+        - every dataset file in use (content hash, or size+mtime when FAST_CONTENT_HASH)
 
-        hash_input = (
-            f"{self.valves.EMBEDDING_MODEL}|{source_path}|{source_format}|"
+        So adding, editing or removing a file in the dataset folder rebuilds the index.
+        """
+        settings = (
+            f"{self.valves.EMBEDDING_MODEL}|{self.valves.RAG_SOURCES}|"
             f"{self.valves.PARSE_JSON_CHUNK_TEXT}|{self.valves.MAX_CHARS_PER_RECORD}|"
             f"{self.valves.TARGET_CHUNKS}|{self.valves.TOP_K_SEMANTIC}|{self.valves.TOP_K_BM25}|"
             f"{self.valves.SEMANTIC_WEIGHT}|{self.valves.SEMANTIC_SCORE_MODE}"
         )
-
-        if os.path.exists(source_path):
-            if self.valves.FAST_CONTENT_HASH:
-                stat = os.stat(source_path)
-                # Use nanosecond mtime to avoid stale cache on rapid edits
-                mtime_ns = getattr(stat, "st_mtime_ns", int(stat.st_mtime * 1e9))
-                hash_input += f"|{mtime_ns}|{stat.st_size}"
-            else:
-                with open(source_path, "rb") as f:
-                    hash_input += "|" + hashlib.md5(f.read()).hexdigest()
-
-        return hashlib.md5(hash_input.encode()).hexdigest()[:16]
+        dataset = self.dataset or self._scan_dataset()
+        return dataset.fingerprint(fast=self.valves.FAST_CONTENT_HASH, extra=settings)
 
     # ---------------------------
     # Tokenization (BM25)
@@ -367,24 +376,19 @@ class Pipeline:
             text = text[:max_chars].rsplit(" ", 1)[0] + "..."
         return text
 
-    def _load_jsonl(self, source_path: str) -> List[Document]:
-        if not os.path.exists(source_path):
-            logger.warning(f"JSONL file not found: {source_path}")
-            return []
-
+    def _chunk_records(self, records: List[Dict[str, str]], source_label: str = "records") -> List[Document]:
+        """
+        Group {id, text} records (from any .jsonl/.json file) into bounded chunks.
+        Grouping keeps the number of embeddings proportional to TARGET_CHUNKS instead of
+        to the number of records, which is what makes a very large corpus affordable here.
+        """
         all_content: List[str] = []
-        with open(source_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    item = json.loads(line)
-                    text = self._extract_jsonl_record_text(item)
-                    if text:
-                        all_content.append(text)
-                except json.JSONDecodeError:
-                    continue
+        for rec in records:
+            # Re-shape to what _extract_jsonl_record_text expects: it reads `uri` plus one
+            # text key, and unwraps JSON-LD when the text is a serialised graph.
+            text = self._extract_jsonl_record_text({"uri": rec.get("id", ""), "text": rec.get("text", "")})
+            if text:
+                all_content.append(text)
 
         if not all_content:
             return []
@@ -400,27 +404,24 @@ class Pipeline:
             documents.append(
                 Document(
                     page_content=combined_text,
-                    metadata={"source": "jsonl", "path": source_path, "chunk_id": len(documents)},
+                    metadata={"source": source_label, "path": source_label, "chunk_id": len(documents)},
                 )
             )
 
-        logger.info(f"Loaded JSONL as {len(documents)} chunks (~{lines_per_chunk} records each)")
+        logger.info(f"Indexed {len(all_content)} records as {len(documents)} chunks (~{lines_per_chunk} each)")
         return documents
 
     # ---------------------------
     # Markdown loading (improved)
     # ---------------------------
-    def _load_markdown(self, source_path: str) -> List[Document]:
+    def _chunk_markdown(self, content: str, source_label: str) -> List[Document]:
         """
-        Chunk markdown primarily by headings.
+        Chunk Markdown primarily by headings.
         Goal: each '## item' section becomes its own doc (better retrieval).
+        PDF text arrives here too — the loader gives each page a '## <file> — page N'
+        heading, so pages chunk exactly like Markdown sections.
         """
-        if not os.path.exists(source_path):
-            logger.warning(f"Markdown file not found: {source_path}")
-            return []
-
-        with open(source_path, "r", encoding="utf-8") as f:
-            content = f.read().strip()
+        content = (content or "").strip()
         if not content:
             return []
 
@@ -451,21 +452,21 @@ class Pipeline:
                     else:
                         docs.append(Document(
                             page_content=cur,
-                            metadata={"source": "markdown", "path": source_path, "chunk_id": len(docs)},
+                            metadata={"source": source_label, "path": source_label, "chunk_id": len(docs)},
                         ))
                         cur = p
                 if cur:
                     docs.append(Document(
                         page_content=cur,
-                        metadata={"source": "markdown", "path": source_path, "chunk_id": len(docs)},
+                        metadata={"source": source_label, "path": source_label, "chunk_id": len(docs)},
                     ))
             else:
                 docs.append(Document(
                     page_content=sec,
-                    metadata={"source": "markdown", "path": source_path, "chunk_id": len(docs)},
+                    metadata={"source": source_label, "path": source_label, "chunk_id": len(docs)},
                 ))
 
-        logger.info(f"Loaded Markdown as {len(docs)} chunks from {source_path}")
+        logger.info(f"Indexed {len(docs)} chunks from {source_label}")
         return docs
 
     # ---------------------------
@@ -633,17 +634,20 @@ class Pipeline:
             logger.info(f"Initialized from cache in {time.time() - start_time:.2f}s")
             return
 
-        source_path = self._get_source_path()
-        source_format = self._detect_source_format(source_path)
-        logger.info(f"Source: {source_path} ({source_format})")
+        dataset = self.dataset or self._scan_dataset()
+        mode = (self.valves.RAG_SOURCES or "auto").strip().lower()
+        use_text = mode in ("auto", "text", "all")
+        use_records = mode in ("records", "all") or (mode == "auto" and not dataset.texts)
 
-        if source_format == "markdown":
-            self.documents = self._load_markdown(source_path)
-        else:
-            self.documents = self._load_jsonl(source_path)
+        self.documents = []
+        if use_text:
+            for source_label, text in dataset.texts:
+                self.documents.extend(self._chunk_markdown(text, source_label))
+        if use_records and dataset.records:
+            self.documents.extend(self._chunk_records(list(dataset.records.values())))
 
         if not self.documents:
-            logger.warning("No documents loaded.")
+            logger.warning(f"No documents loaded from {self.valves.DATASET_DIR}.")
             self.initialized = True
             return
 
@@ -878,7 +882,11 @@ class Pipeline:
         self._initialize()
 
         if not self.documents:
-            yield "No documents loaded. Check SOURCE_PATH/JSON_PATH and SOURCE_FORMAT. Also consider clearing cache."
+            yield (
+                f"No documents loaded. Put your .md / .pdf / .jsonl / .json files in the "
+                f"`dataset/` folder (mounted at `{self.valves.DATASET_DIR}`) — any filename "
+                f"works — then restart the pipeline."
+            )
             return
 
         if self.valves.DEBUG:
