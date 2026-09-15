@@ -349,6 +349,22 @@ class Pipeline:
         self.initialized = False
         self.current_embedding_model: Optional[str] = None
 
+    # ── Lifecycle hooks ───────────────────────────────────────────────────────
+
+    async def on_startup(self) -> None:
+        """
+        Called by the pipelines server when this module is loaded.
+
+        Scan the dataset folder right away instead of waiting for the first question, so
+        the startup log immediately shows whether the user's files were found and what
+        each one was taken to be. Index building stays lazy (it needs the embedding model
+        and costs API credit), so this only reads and classifies the files.
+        """
+        try:
+            self._scan_dataset()
+        except Exception as e:
+            logger.error(f"Dataset scan failed at startup: {e}")
+
     # ── Client management ─────────────────────────────────────────────────────
 
     def _get_openai_client(self) -> OpenAI:
@@ -660,7 +676,9 @@ class Pipeline:
 
         # Scan the dataset folder: records for the KG path, text for the RAG path and the
         # place taxonomy for the Cypher prompt — all keyed on file type, not on filename.
-        self._scan_dataset()
+        # Normally already done by on_startup(); re-scanned here only if that did not run.
+        if self.dataset is None:
+            self._scan_dataset()
 
         # RAG path: build FAISS+BM25 from the discovered text sources, using disk cache
         cache_path = self._get_cache_path()

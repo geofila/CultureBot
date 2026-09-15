@@ -299,7 +299,8 @@ Press `Ctrl+C` to stop watching (the containers keep running).
 docker compose ps
 ```
 
-✅ **Check that the bot found your data.** The log prints one line per file:
+✅ **Check that the bot found your data.** On startup each pipeline scans the dataset
+folder and logs one line per file:
 
 ```bash
 docker compose logs pipelines | grep -A20 "Dataset scan"
@@ -314,7 +315,8 @@ Dataset scan — /app/pipelines/dataset: 1 markdown, 1 pdf, 1 records → ...
 ```
 
 Anything you expected to see missing, or marked `unsupported` / `empty` / `unreadable`,
-is the thing to fix before going on.
+is the thing to fix before going on. If the command prints nothing, give the container
+another 20 seconds — the scan runs a few seconds after the server starts.
 
 ---
 
@@ -416,8 +418,16 @@ You can also override the mode per conversation by putting `[mode:rag]`, `[mode:
 | See what is happening | `docker compose logs -f pipelines` |
 | Check status | `docker compose ps` |
 | After changing `.env` | `docker compose up -d` (recreates with new values) |
-| After changing pipeline code or the Dockerfile | `docker compose build pipelines && docker compose up -d` |
+| After changing pipeline code or the Dockerfile | `./rebuild.sh` — rebuilds the code layers and recreates the containers (~1 min) |
+| Rebuild everything from the base image | `./rebuild.sh --full` — `--no-cache`, re-downloads ~3 GB of CUDA PyTorch (15–30 min) |
+| Start completely fresh, accounts included | `./rebuild.sh --full --wipe` — also deletes `data/open-webui`; asks first |
 | After adding/changing/removing dataset files | `docker compose restart pipelines` — new files are picked up and the index rebuilds by itself (the cache key covers every file in the folder) |
+
+> **`docker compose up -d` on its own never rebuilds an image from scratch.** It only
+> starts what is already built, and there is no compose setting that changes that. Use
+> `docker compose up -d --build` to pick up code changes with cached layers, or
+> `./rebuild.sh --full` for a genuine from-the-beginning rebuild. `rebuild.sh` also clears
+> the search-index cache, so the index is rebuilt from your dataset on the next question.
 
 ---
 
@@ -436,6 +446,14 @@ files are in `dataset/` on the host, and that they are one of the types it reads
 docker compose exec pipelines ls -R /app/pipelines/dataset
 ```
 
+**`docker compose logs pipelines | grep "Dataset scan"` prints nothing**
+The container is still starting (wait ~20 s), or it is running an image built before your
+last code change. Rebuild it:
+
+```bash
+docker compose build pipelines && docker compose up -d pipelines
+```
+
 **One of my files was ignored**
 Look for it in the `Dataset scan` log lines. The reason is always given:
 - `unsupported` — not a type the bot reads (e.g. `.txt`, `.csv`, `.docx`). Convert it.
@@ -443,6 +461,25 @@ Look for it in the `Dataset scan` log lines. The reason is always given:
 - `unreadable` — a malformed JSON, or a scanned PDF with no text layer (OCR it first).
 - not listed at all — its name contains `.example.`, or it is a `README.md`, a dotfile,
   or sits in a `cache/` folder. All of those are skipped by design.
+
+**`openai.AuthenticationError: 401 — Incorrect API key provided`**
+The key in `.env` is not valid: it was deleted or rotated in the OpenAI dashboard, belongs
+to a deleted project, or was auto-revoked because it got published somewhere. Test the key
+by itself — `200` means good, `401` means the key is the problem:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" https://api.openai.com/v1/models \
+  -H "Authorization: Bearer $(grep '^OPENAI_API_KEY=' .env | cut -d= -f2-)"
+```
+
+Then put a fresh key in `.env` and recreate the container so it picks up the new value —
+`restart` alone keeps the old environment:
+
+```bash
+docker compose up -d --force-recreate pipelines
+```
+
+(A key that is valid but out of credit fails differently: `429 insufficient_quota`.)
 
 **The answer is an OpenAI model error (`model_not_found`, `does not exist`, `400`)**
 Your key cannot use the default `gpt-5.5`. Change the `OPENAI_MODEL` valve in

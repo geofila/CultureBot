@@ -208,6 +208,16 @@ class Pipeline:
         self.current_embedding_model: Optional[str] = None
         self._openai_client: Optional[OpenAI] = None
 
+    async def on_startup(self) -> None:
+        """
+        Called by the pipelines server on load. Scans the dataset folder immediately so the
+        startup log shows what was found; the index is still built lazily on first use.
+        """
+        try:
+            self._scan_dataset()
+        except Exception as e:
+            logger.error(f"Dataset scan failed at startup: {e}")
+
     def _get_openai_client(self) -> OpenAI:
         """Lazily create / refresh the OpenAI client when the key or base URL changes."""
         if (
