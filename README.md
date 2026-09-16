@@ -1,510 +1,410 @@
-# SearchCultureBot
+# CultureBot
 
-A chatbot that answers questions about **your own** cultural-heritage collection.
+<div align="center">
 
-You give it a folder of documents — Markdown, PDF, JSONL or JSON, whatever you already
-have — and, optionally, a Neo4j knowledge graph. It gives you a private ChatGPT-style web
-page at `http://localhost:12012` where anyone you allow can ask questions in Greek or
-English and get an answer built **only** from your records, with the source URI of every
-item it used.
+**Explore cultural heritage collections with grounded, source-linked answers.**
 
-Under the hood it is [Open WebUI](https://github.com/open-webui/open-webui) (the chat
-page) talking to an [Open WebUI Pipeline](https://github.com/open-webui/pipelines) (the
-brain) that does hybrid search — FAISS semantic search + BM25 keyword search — and
-optionally Neo4j, then asks an OpenAI model to write the answer.
+<a href="https://culturebot.ails.ece.ntua.gr">
+  <img src="https://img.shields.io/badge/Live_demo-Open_CultureBot-1f5d4f?style=flat" height="30" alt="Demo">
+</a>
+<a href="#paper">
+  <img src="https://img.shields.io/badge/Demo_paper-In_preparation-c97841?style=flat" height="30" alt="Paper">
+</a>
+<a href="#quick-start">
+  <img src="https://img.shields.io/badge/Run_with-Docker_Compose-2496ed?style=flat&logo=docker&logoColor=white" height="30" alt="Docker">
+</a>
 
----
+</div>
 
-## ⚠️ The two things you must supply yourself
+![CultureBot connects museum objects, monuments, and collection knowledge in a conversational interface](images/culturebot-hero-v3.png)
 
-This repository contains **code only**. It ships with **no data and no keys**. Nothing
-will work until you provide both:
+CultureBot is a reusable, open-source pipeline for turning **your own cultural-heritage data** into a conversational research and discovery experience.
 
-| You must provide | Where it goes | Step |
-|---|---|---|
-| 🔑 **Your own OpenAI API key** | the file `.env` in this folder (you create it) | [Step 3](#step-3--put-your-own-api-key-in-env) |
-| 📚 **Your own dataset** | the folder `dataset/` (already here, empty) — any filenames | [Step 4](#step-4--put-your-own-data-in-dataset) |
+Bring collection records, catalogue descriptions, reports, or an optional knowledge graph. CultureBot combines **FAISS semantic search**, **BM25 keyword search**, and—when available—**Neo4j graph retrieval** to answer questions in Greek or English. Answers are grounded in retrieved records and include their source URIs.
 
-Both are in `.gitignore`, so your key and your data can never be pushed to GitHub by
-accident.
+The included examples use the visual language of Ancient Greek monuments and museums, but the pipeline is collection-independent: adapt it to an archive, museum, library, archaeological project, or digital-humanities corpus.
 
----
+> [!NOTE]
+> This repository contains the runnable demo system. The CultureBot demo paper is currently in preparation; publication and citation details will be added here when available.
 
-## Before you start — what you need
+## Table of contents
 
-- A computer with **Linux, macOS or Windows** and about **15 GB of free disk space**
-  (the pipeline image is large — it contains PyTorch).
-- **Docker** + the **Docker Compose v2 plugin** → [Step 1](#step-1--install-docker).
-- An **OpenAI API key** from <https://platform.openai.com/api-keys>. It must have
-  credit on it — the bot pays per question and per indexed record.
-- Your **dataset** — Markdown, PDF, JSONL or JSON files. See [Step 4](#step-4--put-your-own-data-in-dataset).
-- *(Optional)* a running **Neo4j** database, if you also want graph queries. Without it
-  the bot still works — you just run it in `rag` mode. See [Step 5](#step-5--optional--neo4j-knowledge-graph).
-- No GPU is required with the default settings.
+- [Why CultureBot?](#why-culturebot)
+- [Try the demo](#try-the-demo)
+- [How it works](#how-it-works)
+- [Bring your own collection](#bring-your-own-collection)
+- [Quick start](#quick-start)
+- [Configure CultureBot](#configure-culturebot)
+- [Use a Neo4j knowledge graph](#use-a-neo4j-knowledge-graph)
+- [Everyday commands](#everyday-commands)
+- [Repository structure](#repository-structure)
+- [Troubleshooting](#troubleshooting)
+- [Security, privacy, and cost](#security-privacy-and-cost)
+- [Paper](#paper)
 
-⏱️ Expect about **20–40 minutes** the first time, most of it Docker downloading images.
+## Why CultureBot?
 
----
+Cultural collections are rich in names, places, periods, materials, relationships, and uncertain interpretations. A useful assistant must do more than retrieve text that looks similar to a question.
 
-# Step-by-step installation
+CultureBot is designed around three principles:
 
-Follow the steps in order. After each one there is a ✅ check so you know it worked
-before moving on.
+| Principle | What it means in the demo |
+|---|---|
+| **Bring your own data** | Point the pipeline at Markdown, PDF, JSONL, or JSON files. Filenames do not matter, and subfolders are scanned automatically. |
+| **Combine text and structure** | Use hybrid FAISS + BM25 retrieval on its own, or merge it with validated, read-only Cypher queries over a Neo4j knowledge graph. |
+| **Keep answers traceable** | Retrieved records remain the evidence: answers cite the source URI of the cultural objects they use. |
 
-## Step 1 — Install Docker
+You can run CultureBot in three modes:
 
-**Ubuntu / Debian:**
+| Mode | Retrieval path | Neo4j required? | Good starting point for |
+|---|---|---:|---|
+| `rag` | FAISS semantic search + BM25, fused with Reciprocal Rank Fusion | No | Documents, catalogue text, reports, and a first local demo |
+| `kg` | Natural language → validated Cypher → graph records | Yes | Collections whose structured relationships are central |
+| `hybrid` | Knowledge graph + hybrid text retrieval in one grounded answer | Yes, with automatic RAG fallback | The full CultureBot experience |
 
-```bash
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-sudo usermod -aG docker "$USER"
+## Try the demo
+
+- **Live demo:** [culturebot.ails.ece.ntua.gr](https://culturebot.ails.ece.ntua.gr)
+- **Project page:** [geofila.github.io/CultureBot](https://geofila.github.io/CultureBot/)
+- **Runnable code:** this `culture_deploy` branch
+
+Example questions for a Greek cultural collection:
+
+```text
+Which marble sculptures in the collection belong to the Roman period?
+
+Show me objects connected to Athens and explain how their dates differ.
+
+Ποια αντικείμενα βρέθηκαν στην Πάτρα και χρονολογούνται στη Ρωμαϊκή περίοδο;
 ```
 
-Now **log out and log back in** (or run `newgrp docker`), otherwise every `docker`
-command will say "permission denied".
+## How it works
 
-**macOS / Windows:** install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-and start it. It already includes Compose v2.
+![CultureBot schema](images/culturebot_overview.drawio.png)
 
-✅ **Check:** both commands print a version number.
+The browser interface is provided by [Open WebUI](https://github.com/open-webui/open-webui). It talks to an [Open WebUI Pipelines](https://github.com/open-webui/pipelines) service that loads your collection, builds the search indexes, optionally queries Neo4j, and asks the configured language model to compose the final answer.
 
-```bash
-docker --version
-docker compose version
+## Bring your own collection
+
+Put your files anywhere under `dataset/`. CultureBot walks subfolders and classifies files by extension and content shape.
+
+| Input | How CultureBot uses it |
+|---|---|
+| `.md`, `.markdown` | Splits the text by headings and indexes the resulting chunks for hybrid search |
+| `.pdf` | Extracts and indexes text page by page; scanned PDFs need OCR first |
+| `.jsonl`, `.ndjson` | Reads one `{id, text}` record per line; also provides record text for graph results |
+| `.json` | Detects record collections, place taxonomies, or filter vocabularies from the JSON shape |
+
+Files containing `.example.` in their name, `README.md`, dotfiles, and files inside a `cache/` folder are skipped intentionally.
+
+### Recommended Markdown format
+
+Markdown is the easiest route to a first demo. Use one heading per cultural object and include a stable `URI:` so CultureBot can cite it.
+
+```markdown
+## Marble portrait head
+- URI: https://example.org/collection/object/0001
+
+**Type:** Sculpture
+**Material:** Marble
+**Time period:** 101–200 CE
+**Location found:** Athens
+
+**Description:**
+A catalogue description of the object, its condition, interpretation,
+provenance, and any other text that should be searchable.
 ```
 
----
+### Recommended JSONL format
 
-## Step 2 — Get the code and switch to the right branch
+For large collections, use one object per line:
 
-⚠️ **This is the step people get wrong.** The bot does **not** live on the default
-branch. `git clone` gives you `main`, which contains only the project's website — no
-`compose.yml`, no pipelines, nothing to run. You must check out **`culture_deploy`**.
+```json
+{"id":"https://example.org/collection/object/0001","text":"**Title:** Marble portrait head\n**Description:** ..."}
+```
+
+When using Neo4j, the `id` must match the identifier stored on the corresponding `ProvidedCHO` node. That is how graph results are joined back to the textual evidence used in an answer.
+
+### PDFs
+
+Drop text-based PDFs directly into `dataset/`; every page becomes a searchable chunk. A scanned document without a text layer will not be indexed, so apply OCR before adding it.
+
+For every accepted field alias and JSON shape, see [`dataset/README.md`](dataset/README.md).
+
+## Quick start
+
+### Requirements
+
+- Linux, macOS, or Windows
+- [Docker](https://docs.docker.com/get-docker/) with Docker Compose v2
+- Around 15 GB of free disk space for the first image build
+- An [OpenAI API key](https://platform.openai.com/api-keys) with available credit
+- Your collection files
+- Optional: a Neo4j database for `kg` or `hybrid` mode
+
+No GPU is required with the default configuration. The first build usually takes 20–40 minutes because Docker downloads the pipeline dependencies.
+
+### 1. Clone the deployment branch
 
 ```bash
-git clone https://github.com/geofila/CultureBot.git
+git clone --branch culture_deploy --single-branch https://github.com/geofila/CultureBot.git
 cd CultureBot
-git checkout culture_deploy
 ```
 
-Already cloned earlier and nothing looks familiar? You are on the wrong branch — just run:
+If you cloned the repository without `--branch`, switch explicitly:
 
 ```bash
 git checkout culture_deploy
 ```
 
-✅ **Check:** the first command prints `culture_deploy`, and the second lists
-`compose.yml`, `.env.example`, `dataset/` and `sources/`.
+Confirm that you can see the deployment files:
 
 ```bash
 git branch --show-current
 ls
 ```
 
-If `ls` shows only a `docs/` folder, the checkout did not happen — repeat it before
-continuing.
+The branch should be `culture_deploy`, and the directory should contain `compose.yml`, `.env.example`, `dataset/`, and `sources/`.
 
-> Every command from here on is run **from inside this folder** (`CultureBot/`), on the
-> `culture_deploy` branch.
-
----
-
-## Step 3 — Put your own API key in `.env`
-
-`.env` is the single file that holds all your secrets. It does not exist yet — create it
-by copying the template:
+### 2. Create your environment file
 
 ```bash
 cp .env.example .env
-```
-
-You also need two random passwords. Run this twice and copy each result:
-
-```bash
+openssl rand -hex 32
 openssl rand -hex 32
 ```
 
-Now open the file in an editor:
-
-```bash
-nano .env        # or: gedit .env / code .env / vim .env
-```
-
-Fill in these **three required** values:
-
-| Variable in `.env` | Put this in it |
-|---|---|
-| `OPENAI_API_KEY` | Your own OpenAI key. It starts with `sk-`. Get it at <https://platform.openai.com/api-keys> |
-| `WEBUI_SECRET_KEY` | The **first** random string from `openssl rand -hex 32` |
-| `PIPELINES_API_KEY` | The **second** random string. You will paste this again later, in [Step 8](#step-8--connect-the-chat-page-to-the-bot) |
-
-So the top of your `.env` should end up looking like this (with **your** values):
+Open `.env` and set these three required values:
 
 ```ini
-OPENAI_API_KEY=sk-proj-REPLACE-WITH-YOUR-REAL-KEY
-OPENAI_MODEL=gpt-5.5
-OPENAI_BASE_URL=https://api.openai.com/v1
-
-WEBUI_SECRET_KEY=8f3c1d...your-first-random-string...
-PIPELINES_API_KEY=a91be7...your-second-random-string...
+OPENAI_API_KEY=sk-proj-REPLACE-WITH-YOUR-KEY
+WEBUI_SECRET_KEY=REPLACE-WITH-THE-FIRST-RANDOM-STRING
+PIPELINES_API_KEY=REPLACE-WITH-THE-SECOND-RANDOM-STRING
 ```
 
-Save and close the editor (in `nano`: `Ctrl+O`, `Enter`, `Ctrl+X`).
+- `WEBUI_SECRET_KEY` signs browser sessions.
+- `PIPELINES_API_KEY` authenticates Open WebUI to the pipeline service. Keep it nearby; you will enter it once in the web interface.
+- `.env` is ignored by Git. Still, check `git status` before every push and never commit a real key.
 
-> **Which model will it use?** ⚠️ Read this — it is the single most common mistake.
-> The `OPENAI_MODEL` line above is only used by the simpler `CultureBot` pipeline. The
-> main `KGSearchCultureBot` pipeline **ignores it** and uses its own built-in default,
-> `gpt-5.5`. If your OpenAI account cannot use that model, every answer will fail with a
-> model error. You change it in the web admin panel *after* startup — see
-> [Choosing the model and the mode](#choosing-the-model-and-the-mode). Only
-> `OPENAI_API_KEY`, `NEO4J_URI`, `NEO4J_USER` and `NEO4J_PASSWORD` are read from `.env`
-> by that pipeline.
+> [!IMPORTANT]
+> In the main `KGSearchCultureBot` pipeline, the generation model is controlled by the `OPENAI_MODEL` **valve in the web admin panel**, not by the `.env` value. If your API project cannot access the default model, change that valve after startup.
 
-✅ **Check:** the file exists and your key is in it, and git ignores it.
+### 3. Add your data
+
+Copy collection files into `dataset/`; names and subfolders are up to you.
 
 ```bash
-grep OPENAI_API_KEY .env      # shows your key
-git status --short            # must NOT list .env
+cp ~/my-collection/catalogue.md dataset/
+cp ~/my-collection/research-report.pdf dataset/
+cp ~/my-collection/records.jsonl dataset/
 ```
 
----
+The repository includes `.example.*` files that document the accepted formats. They are not indexed as collection data.
 
-## Step 4 — Put your own data in `dataset/`
+### 4. Optional: connect Neo4j
 
-Copy your files into the `dataset/` folder that is already in this repo. **Filenames do
-not matter** — the bot scans the whole folder (subfolders included) and handles each file
-according to its type:
-
-| If the file is… | …the bot does this with it |
-|---|---|
-| `.md` / `.markdown` | Indexes it for search. Each `##` section becomes one searchable chunk. |
-| `.pdf` | Extracts the text page by page and indexes each page as a chunk. |
-| `.jsonl` / `.ndjson` | Reads one `{"id": ..., "text": ...}` record per line, for the Knowledge-Graph lookup. |
-| `.json` | Looks at its shape: a list of place records → your place taxonomy; a list/object of `{id, text}` → records; the portal's filter vocabulary → kept aside. |
-| anything else | Ignored, and named in the startup log so you can see it was skipped. |
-
-So this is enough:
-
-```bash
-cp ~/my-research/collection.md        dataset/
-cp ~/my-research/catalogue.pdf        dataset/
-cp ~/my-research/records-2024.jsonl   dataset/
-```
-
-Files named `*.example.*` and `dataset/README.md` are skipped on purpose — they are the
-format samples shipped with this repo, not your data.
-
-**Look at the samples** to see the structure that works best:
-
-```bash
-cat dataset/puretext_chunks.example.md
-cat dataset/puretext_chunks.example.jsonl
-cat dataset/kg_jsons/searchculture_places_taxonomy.example.json
-```
-
-### Markdown — the easiest way to start
-
-One `##` heading per artifact. Everything under a heading becomes one searchable chunk,
-and a `URI:` line lets the bot cite it (and lets graph results find their text):
-
-```markdown
-## Example marble head (Παράδειγμα κεφαλής)
-- URI: https://example.org/collection/item/0001
-
-**Type:** Sculpture (Γλυπτό)
-**Material:** Marble (Μάρμαρο)
-**Time Period:** 101 AD - 200 AD
-**Location Found:** Example City
-
-**Description:**
-Free text describing the object. This is the text the bot searches and quotes.
-```
-
-### JSONL — for large collections and for graph mode
-
-One object per line. The `id` **must be the same URI/id used in your Neo4j graph**, so a
-graph result can be matched to its description:
-
-```json
-{"id": "https://example.org/collection/item/0001", "text": "**Title:** ...\n**Description:**\n..."}
-```
-
-### PDF — just drop it in
-
-Each page becomes its own chunk, titled `<filename> — page N`. Scanned PDFs with no text
-layer produce nothing (the log says so) — run OCR on them first.
-
-> **Both a `.md` and a `.jsonl` holding the same records?** By default the bot indexes the
-> Markdown and uses the JSONL only for graph lookups, so you are not charged to embed the
-> same corpus twice. Change the `RAG_SOURCES` valve to `all` if you really want both.
-
-✅ **Check:** your files are there, and git is ignoring them.
-
-```bash
-ls -lh dataset/
-git status --short          # must NOT list your data files
-```
-
-You will see the bot confirm what it found, file by file, in the log at
-[Step 6](#step-6--start-everything). For the full detail of every file type — accepted
-field names, what makes a good chunk, how PDFs are handled — see
-[`dataset/README.md`](dataset/README.md).
-
----
-
-## Step 5 — *(Optional)* — Neo4j knowledge graph
-
-Skip this if you do not have a Neo4j database — the bot works fine without it.
-
-If you do, add your connection details to `.env`:
+If you want graph or hybrid retrieval, add the connection to `.env`:
 
 ```ini
 NEO4J_URI=neo4j://your-neo4j-host:7687
 NEO4J_USER=neo4j
-NEO4J_PASSWORD=your-neo4j-password
+NEO4J_PASSWORD=REPLACE-WITH-YOUR-PASSWORD
 ```
 
-> `localhost` will **not** work here: the bot runs inside a container, where `localhost`
-> means the container itself. Use the machine's IP, a hostname, or
-> `host.docker.internal` (Docker Desktop) if Neo4j runs on your own machine.
+If Neo4j runs on your computer, do not use `localhost`: from inside the pipeline container, that points back to the container. With Docker Desktop, use `host.docker.internal`; otherwise use a hostname or reachable machine IP.
 
-Your graph must use the node labels and relationships the Cypher prompt was written
-against (`Entity:ProvidedCHO`, `Entity:Place`, `Entity:TimeSpan`, `Entity:Concept`,
-`Material`, with `LOCATED_IN`, `HAS_TEMPORAL_REFERENCE`/`FROM_PERIOD`, `HAS_TYPE`,
-`HAS_SUBJECT`, `MADE_OF`). The full expected schema is at the top of
-[`sources/pipelines/sc_kg_nl2cypher.py`](sources/pipelines/sc_kg_nl2cypher.py) — read it
-before pointing the bot at a differently-shaped graph.
+If you do not have a graph, skip this step and select `rag` mode after startup.
 
----
-
-## Step 6 — Start everything
+### 5. Start CultureBot
 
 ```bash
 docker compose up -d
-```
-
-The **first run builds the pipeline image** (PyTorch + CUDA wheels, several GB). This can
-take 10–30 minutes and only happens once. Watch it work:
-
-```bash
 docker compose logs -f pipelines
 ```
 
-Press `Ctrl+C` to stop watching (the containers keep running).
-
-✅ **Check:** both containers say `running` / `Up`.
+Press `Ctrl+C` to stop following the log; the containers keep running. Check their state with:
 
 ```bash
 docker compose ps
 ```
 
-✅ **Check that the bot found your data.** On startup each pipeline scans the dataset
-folder and logs one line per file:
+Verify that CultureBot discovered the expected files:
 
 ```bash
 docker compose logs pipelines | grep -A20 "Dataset scan"
 ```
 
-```
-Dataset scan — /app/pipelines/dataset: 1 markdown, 1 pdf, 1 records → ...
-  • collection.md [markdown] — 482,190 chars, 1,204 ids
-  • catalogue.pdf [pdf] — 88/90 pages with text
-  • records-2024.jsonl [records] — 1,204 records
-  • notes.txt [unsupported] — .txt not read
-```
+Every source is reported as loaded, skipped, empty, unsupported, or unreadable. Resolve unexpected entries before continuing.
 
-Anything you expected to see missing, or marked `unsupported` / `empty` / `unreadable`,
-is the thing to fix before going on. If the command prints nothing, give the container
-another 20 seconds — the scan runs a few seconds after the server starts.
+### 6. Create the administrator account
 
----
+1. Open [http://localhost:12012](http://localhost:12012).
+2. Select **Sign up** and create the first account.
 
-## Step 7 — Create your account
+The first account becomes the administrator. Later accounts remain pending until the administrator approves them.
 
-1. Open <http://localhost:12012> in a browser.
-2. Click **Sign up** and create the first account.
+### 7. Connect Open WebUI to CultureBot
 
-> The **first account created becomes the administrator** automatically. Every account
-> created after that stays `pending` until you approve it from the admin panel — this is
-> deliberate, so a public deployment cannot be used by strangers.
+In Open WebUI:
 
-✅ **Check:** you are logged in and see an empty chat page.
+1. Open **Admin Panel → Settings → Connections**.
+2. Under **OpenAI API**, add a connection.
+3. Set **URL / Base URL** to `http://pipelines:9099`.
+4. Set **API Key** to the `PIPELINES_API_KEY` value from `.env`.
+5. Save.
 
----
+Use `http://pipelines:9099` exactly. It is the service address inside the Docker network; `localhost:12011` will not work from the Open WebUI container.
 
-## Step 8 — Connect the chat page to the bot
+Start a new chat. The model selector should now include:
 
-The chat page and the bot are two separate services; you introduce them once.
+- **KGSearchCultureBot V2 (Clean)** — the main graph + hybrid RAG pipeline
+- **CultureBot** — the simpler RAG-only pipeline
 
-1. Click your avatar (bottom-left) → **Admin Panel**.
-2. Go to **Settings → Connections**.
-3. Under **OpenAI API**, add a new connection (the **+** button):
-   - **URL / Base URL:** `http://pipelines:9099`
-   - **API Key:** the `PIPELINES_API_KEY` value from your `.env` (the second random
-     string from Step 3)
-4. **Save**.
+### 8. Choose a mode and ask a question
 
-> Use `http://pipelines:9099` exactly. This is the address *inside* the Docker network —
-> `localhost:12011` will not work from the chat container.
+Select **KGSearchCultureBot V2 (Clean)**. If you did not configure Neo4j, open **Admin Panel → Pipelines**, select the CultureBot pipeline, and set `QUERY_MODE` to `rag`.
 
-✅ **Check:** open a new chat. The model dropdown now lists two bots:
-**KGSearchCultureBot V2 (Clean)** (the main one) and **CultureBot** (the simpler RAG-only one).
+Ask a question covered by your collection. The first request initializes the indexes and may take a few minutes; later requests reuse the disk cache.
 
----
-
-## Step 9 — Ask your first question
-
-1. Start a **New Chat** and select **KGSearchCultureBot V2 (Clean)** from the model list.
-2. Ask something your dataset can answer, e.g. *"Show me marble sculptures from the Roman period"*.
-
-The very first question prints `⏳ Initializing index…` and takes a few minutes: it is
-embedding your whole corpus through the OpenAI API and building the FAISS + BM25 index.
-This is cached, so later questions answer in seconds.
-
-Watch it happen in another terminal:
-
-```bash
-docker compose logs -f pipelines
+```text
+Show me marble sculptures from the Roman period and cite the relevant records.
 ```
 
-🎉 **That's it.** If you got a grounded answer with URIs, your installation is complete.
+If the answer is grounded in your data and contains source URIs, your collection demo is ready.
 
----
+## Configure CultureBot
 
-# Using the bot
+Open **Admin Panel → Pipelines**, select `KGSearchCultureBot`, adjust the valves, and save.
 
-## Choosing the model and the mode
-
-These live in the web admin panel, **not** in `.env`:
-
-**Admin Panel → Pipelines → select `KGSearchCultureBot`** → change the values → **Save**.
-
-| Setting (valve) | Default | Change it to |
+| Valve | Default | Purpose |
 |---|---|---|
-| `OPENAI_MODEL` | `gpt-5.5` | Any chat model your key can use (e.g. `gpt-4o`, `gpt-4o-mini`). **Set this if you get model errors.** |
-| `QUERY_MODE` | `hybrid` | `rag` if you have no Neo4j (faster, avoids a wasted graph call) |
-| `EMBEDDING_MODEL` | `text-embedding-3-small` | `text-embedding-3-large` (better, pricier), or `sentence-transformers/all-MiniLM-L6-v2` to embed locally on CPU for free |
-| `TOP_K_SEMANTIC` / `TOP_K_BM25` | `100` | Lower for cheaper/faster answers |
-| `TEMPERATURE` | `0.2` | Higher for more creative (less literal) answers |
-| `RAG_SOURCES` | `auto` | `text` (index only `.md`/`.pdf`), `records` (only `.jsonl`/`.json`), or `all` (both, even if that duplicates a corpus) |
-| `DATASET_DIR` | `/app/pipelines/dataset` | Only if you mount your data somewhere else |
-| `EXTRA_FILES` | *(empty)* | Comma-separated paths to extra files outside the dataset folder |
+| `OPENAI_MODEL` | `gpt-5.5` | Generation model used by the main pipeline; change this if your API project cannot access the default |
+| `QUERY_MODE` | `hybrid` | `rag`, `kg`, or `hybrid` |
+| `EMBEDDING_MODEL` | `text-embedding-3-small` | OpenAI embeddings by default; local alternatives include `sentence-transformers/all-MiniLM-L6-v2` and `Qwen/Qwen3-Embedding-0.6B` |
+| `TOP_K_SEMANTIC` | `100` | Number of FAISS candidates retrieved |
+| `TOP_K_BM25` | `100` | Number of BM25 candidates retrieved |
+| `TEMPERATURE` | `0.2` | Lower values favor more literal, stable answers |
+| `RAG_SOURCES` | `auto` | `auto`, `text`, `records`, or `all` |
+| `DATASET_DIR` | `/app/pipelines/dataset` | Dataset path inside the container |
+| `EXTRA_FILES` | empty | Comma-separated paths to additional mounted files |
 
-> Changing `EMBEDDING_MODEL` or the retrieval settings invalidates the index cache — the
-> next question rebuilds it (and re-pays for embeddings).
->
-> Valve changes are stored inside the `pipelines` container, so check them again after
-> any `docker compose build` or container recreate.
+`RAG_SOURCES=auto` indexes Markdown and PDF content when present. If the collection only contains JSON/JSONL records, it indexes those instead. This avoids embedding two representations of the same collection by default.
 
-**The three query modes:**
+Changing the embedding model or retrieval settings invalidates the cached index. The next question rebuilds it.
 
-| Mode | What it does | Needs Neo4j? |
-|---|---|---|
-| `hybrid` *(default)* | Graph query **and** hybrid search, merged into one grounded answer | Yes (falls back to RAG-only if the graph fails) |
-| `kg` | Model writes Cypher → Neo4j → looks up each item's text in your records → answers | Yes |
-| `rag` | FAISS + BM25 search over your indexed text only | No |
+You may override the mode for a conversation by adding one of these tags to its system prompt:
 
-You can also override the mode per conversation by putting `[mode:rag]`, `[mode:kg]` or
-`[mode:hybrid]` in the chat's system prompt.
+```text
+[mode:rag]
+[mode:kg]
+[mode:hybrid]
+```
+
+## Use a Neo4j knowledge graph
+
+CultureBot's NL-to-Cypher prompt targets a specific cultural-heritage schema. Before connecting a different graph, review the complete schema and examples at the top of [`sources/pipelines/sc_kg_nl2cypher.py`](sources/pipelines/sc_kg_nl2cypher.py).
+
+The expected graph includes entities such as:
+
+- `Entity:ProvidedCHO`
+- `Entity:Place`
+- `Entity:TimeSpan`
+- `Entity:Concept`
+- `Material`
+
+and relationships including `LOCATED_IN`, `HAS_TEMPORAL_REFERENCE`, `FROM_PERIOD`, `HAS_TYPE`, `HAS_SUBJECT`, and `MADE_OF`.
+
+Generated Cypher is validated as read-only before execution. For defense in depth, connect CultureBot with a Neo4j user that has read-only permissions.
 
 ## Everyday commands
 
-| What you want | Command |
+| Task | Command |
 |---|---|
 | Start | `docker compose up -d` |
 | Stop | `docker compose down` |
-| Restart just the bot | `docker compose restart pipelines` |
-| See what is happening | `docker compose logs -f pipelines` |
-| Check status | `docker compose ps` |
-| After changing `.env` | `docker compose up -d` (recreates with new values) |
-| After changing pipeline code or the Dockerfile | `./rebuild.sh` — rebuilds the code layers and recreates the containers (~1 min) |
-| Rebuild everything from the base image | `./rebuild.sh --full` — `--no-cache`, re-downloads ~3 GB of CUDA PyTorch (15–30 min) |
-| Start completely fresh, accounts included | `./rebuild.sh --full --wipe` — also deletes `data/open-webui`; asks first |
-| After adding/changing/removing dataset files | `docker compose restart pipelines` — new files are picked up and the index rebuilds by itself (the cache key covers every file in the folder) |
+| View pipeline logs | `docker compose logs -f pipelines` |
+| Check service status | `docker compose ps` |
+| Restart after changing data | `docker compose restart pipelines` |
+| Apply `.env` changes | `docker compose up -d --force-recreate` |
+| Rebuild after changing pipeline code | `./rebuild.sh` |
+| Full no-cache rebuild | `./rebuild.sh --full` |
+| Full rebuild and delete accounts/runtime data | `./rebuild.sh --full --wipe` |
 
-> **`docker compose up -d` on its own never rebuilds an image from scratch.** It only
-> starts what is already built, and there is no compose setting that changes that. Use
-> `docker compose up -d --build` to pick up code changes with cached layers, or
-> `./rebuild.sh --full` for a genuine from-the-beginning rebuild. `rebuild.sh` also clears
-> the search-index cache, so the index is rebuilt from your dataset on the next question.
+The index fingerprint includes the selected embedding settings and source files. Adding, editing, or removing collection data triggers a rebuild after the pipeline restarts.
 
----
+## Repository structure
 
-# Troubleshooting
+```text
+.
+├── compose.yml
+├── .env.example
+├── dataset/                          # Put your collection here
+│   ├── README.md                     # Detailed input-format reference
+│   ├── *.example.*                   # Format examples, not indexed
+│   └── kg_jsons/                     # Example taxonomy/filter JSON
+├── data/                             # Runtime data and index cache, ignored by Git
+├── docs/assets/culturebot-hero.png   # README hero artwork
+├── rebuild.sh
+└── sources/
+    ├── Dockerfile.pipelines
+    └── pipelines/
+        ├── KGSearchCultureBot_v2.py  # Main KG + hybrid RAG pipeline
+        ├── SearchCultureBot.py       # Simpler RAG-only pipeline
+        ├── dataset_loader.py         # Filename-independent data discovery
+        └── sc_kg_nl2cypher.py        # NL-to-Cypher prompt, schema, validation
+```
 
-**`error while interpreting services... set OPENAI_API_KEY in .env`**
-Your `.env` is missing or that line is empty. Redo [Step 3](#step-3--put-your-own-api-key-in-env).
-Compose refuses to start rather than run with an empty key.
+## Troubleshooting
 
-**`❌ No data found` / `Nothing indexed for the RAG path`**
-The bot lists everything it scanned in that same message and in the log. Check that your
-files are in `dataset/` on the host, and that they are one of the types it reads
-(`.md`, `.pdf`, `.jsonl`, `.json`). Confirm they reached the container with:
+<details>
+<summary><strong>Compose says that a required key is missing</strong></summary>
+
+Create `.env` from `.env.example` and fill `OPENAI_API_KEY`, `WEBUI_SECRET_KEY`, and `PIPELINES_API_KEY`. Run all Docker commands from the repository root.
+
+</details>
+
+<details>
+<summary><strong>No models appear in Open WebUI</strong></summary>
+
+Repeat the connection step. The base URL must be `http://pipelines:9099`, and the API key must match `PIPELINES_API_KEY` exactly.
+
+</details>
+
+<details>
+<summary><strong>A collection file was ignored</strong></summary>
+
+Inspect the dataset scan:
 
 ```bash
+docker compose logs pipelines | grep -A20 "Dataset scan"
 docker compose exec pipelines ls -R /app/pipelines/dataset
 ```
 
-**`docker compose logs pipelines | grep "Dataset scan"` prints nothing**
-The container is still starting (wait ~20 s), or it is running an image built before your
-last code change. Rebuild it:
+- `unsupported`: convert the file to Markdown, PDF, JSONL, or JSON.
+- `empty`: the file has no content.
+- `unreadable`: fix malformed JSON or apply OCR to a scanned PDF.
+- not listed: check whether its name contains `.example.`, it is a `README.md` or dotfile, or it lives inside `cache/`.
 
-```bash
-docker compose build pipelines && docker compose up -d pipelines
-```
+</details>
 
-**One of my files was ignored**
-Look for it in the `Dataset scan` log lines. The reason is always given:
-- `unsupported` — not a type the bot reads (e.g. `.txt`, `.csv`, `.docx`). Convert it.
-- `empty` — the file is 0 bytes.
-- `unreadable` — a malformed JSON, or a scanned PDF with no text layer (OCR it first).
-- not listed at all — its name contains `.example.`, or it is a `README.md`, a dotfile,
-  or sits in a `cache/` folder. All of those are skipped by design.
+<details>
+<summary><strong>The OpenAI API returns a model error</strong></summary>
 
-**`openai.AuthenticationError: 401 — Incorrect API key provided`**
-The key in `.env` is not valid: it was deleted or rotated in the OpenAI dashboard, belongs
-to a deleted project, or was auto-revoked because it got published somewhere. Test the key
-by itself — `200` means good, `401` means the key is the problem:
+Your API project may not have access to the default generation model. Change the main pipeline's `OPENAI_MODEL` valve in **Admin Panel → Pipelines** to a model available to your project. Editing `OPENAI_MODEL` in `.env` only changes the simpler pipeline.
 
-```bash
-curl -s -o /dev/null -w "%{http_code}\n" https://api.openai.com/v1/models \
-  -H "Authorization: Bearer $(grep '^OPENAI_API_KEY=' .env | cut -d= -f2-)"
-```
+</details>
 
-Then put a fresh key in `.env` and recreate the container so it picks up the new value —
-`restart` alone keeps the old environment:
+<details>
+<summary><strong>Graph retrieval returns no records</strong></summary>
 
-```bash
-docker compose up -d --force-recreate pipelines
-```
+Check the Neo4j connection, use a host reachable from the container, and confirm that graph identifiers match the JSONL `id` values or Markdown `URI:` values exactly. Also confirm that your graph follows the schema documented in `sc_kg_nl2cypher.py`.
 
-(A key that is valid but out of credit fails differently: `429 insufficient_quota`.)
+</details>
 
-**The answer is an OpenAI model error (`model_not_found`, `does not exist`, `400`)**
-Your key cannot use the default `gpt-5.5`. Change the `OPENAI_MODEL` valve in
-**Admin Panel → Pipelines** to a model you do have (editing `.env` does **not** fix this
-for the main pipeline).
+<details>
+<summary><strong>I need to force a complete re-index</strong></summary>
 
-**No models in the dropdown / "no connection"**
-Redo [Step 8](#step-8--connect-the-chat-page-to-the-bot). The URL must be
-`http://pipelines:9099`, and the API key must match `PIPELINES_API_KEY` in `.env`
-character for character.
-
-**Answers are empty or say "no results"**
-Ask something your dataset actually contains, then check how much got indexed in the log
-(`Prepared N chunks for RAG from M source(s)`). If `N` is 1 for a large Markdown file,
-it has no `##` headings, so the whole file became a single chunk — add headings.
-
-**KG / hybrid mode never returns graph results**
-Check `NEO4J_URI` / `NEO4J_USER` / `NEO4J_PASSWORD`, that the URI is not `localhost`
-(see [Step 5](#step-5--optional--neo4j-knowledge-graph)), and that the item ids in your
-graph match the `id` values in your `.jsonl` records (or the `URI:` lines of your
-Markdown sections).
-
-**I want to force a full re-index**
-The index rebuilds by itself whenever a dataset file changes, so you rarely need to. To
-force it, delete the cache that `compose.yml` keeps on the host:
+The cache normally invalidates automatically. To remove it manually:
 
 ```bash
 docker compose down
@@ -512,117 +412,43 @@ rm -rf data/pipelines-cache
 docker compose up -d
 ```
 
-**`no configuration file provided: not found` / there is no `compose.yml`**
-You are on the wrong branch. The code lives on `culture_deploy`, not on `main` (which
-holds only the project website). Run `git checkout culture_deploy` — see
-[Step 2](#step-2--get-the-code-and-switch-to-the-right-branch).
+</details>
 
-**`permission denied while trying to connect to the Docker daemon`**
-You skipped the log-out after `usermod -aG docker`. Run `newgrp docker` or log out and in.
+<details>
+<summary><strong>Docker reports that a port is already allocated</strong></summary>
 
-**`port is already allocated`**
-Something else uses 12012 or 12011. In `compose.yml`, change the **left** side of the
-mapping, e.g. `"127.0.0.1:13012:8080"`.
+Change the host side—the left number—of the relevant port mapping in `compose.yml`, for example `127.0.0.1:13012:8080`.
+
+</details>
+
+## Security, privacy, and cost
+
+- `.env`, runtime data, and non-example collection files are ignored by Git. Always verify with `git status` before pushing.
+- The dataset is mounted read-only into the pipeline container; it is not baked into the Docker image.
+- Both exposed ports are bound to `127.0.0.1` by default. Use a TLS reverse proxy before publishing the service.
+- Keep `DEFAULT_USER_ROLE=pending` if the deployment is reachable by others.
+- Use a read-only Neo4j account even though generated Cypher is validated before execution.
+- With the default OpenAI embedding and generation settings, collection text is sent to the configured OpenAI-compatible API. A local embedding model keeps index construction local, but answer generation still uses the configured model endpoint.
+- The first query embeds the collection and costs more than later cached queries. Start with `text-embedding-3-small`, or use `sentence-transformers/all-MiniLM-L6-v2` for local CPU embeddings.
+
+## Paper
+
+CultureBot accompanies the demo paper:
+
+> **CultureBot: Exploring Cultural Heritage Collections with Large Language Models**
+>
+> Demo paper in preparation.
+
+The work presents a repository-independent framework for natural-language exploration of cultural heritage collections through graph-guided and textual retrieval with source-linked generation. The current demonstration is instantiated on [SearchCulture](https://searchculture.gr/) data for movable monuments from the Hellenic Ministry of Culture, while this repository packages the pipeline so it can be reused with other collections.
+
+Citation metadata, authors, venue, DOI, and a canonical BibTeX entry will be added when the paper is available. Until then, please link to this repository and the [project page](https://geofila.github.io/CultureBot/).
 
 ---
 
-# Reference
+<div align="center">
 
-## How your key and your data actually reach the bot
+**Bring your collection. Keep its structure. Let people ask better questions.**
 
-```
-.env  ──read by──▶  compose.yml  ──injected as env vars──▶  container
-                                                              │
-                                         os.getenv("OPENAI_API_KEY")
-                                                              ▼
-./dataset  ──mounted read-only──▶  /app/pipelines/dataset  ──scanned by──▶  the pipeline
-                                          │
-             dataset_loader.py sorts each file by type: .md/.pdf → search index,
-             .jsonl/.json → records + place taxonomy
-```
+[Live demo](https://culturebot.ails.ece.ntua.gr) · [Project page](https://geofila.github.io/CultureBot/) · [Input formats](dataset/README.md)
 
-No key is ever written into the source code, and no dataset is baked into the image.
-Both stay on your machine.
-
-## Architecture
-
-```
-┌─────────────┐        ┌──────────────────────────────┐        ┌────────────────┐
-│  Open WebUI │──API──▶│  Pipelines (RAG + KG)        │──API──▶│  OpenAI        │
-│  (chat page)│        │  KGSearchCultureBot_v2.py    │        │  (LLM + embed) │
-└─────────────┘        │  FAISS + BM25 + Cypher       │        └────────────────┘
-      ▲                └──────────────┬───────────────┘
-      │                               │ (kg / hybrid modes only)
-   browser                            ▼
-                              ┌────────────────┐
-                              │  Neo4j graph   │  (optional)
-                              └────────────────┘
-```
-
-| Service | Image | Address on your machine | Purpose |
-|---|---|---|---|
-| `open-webui` | `ghcr.io/open-webui/open-webui:main` | `http://localhost:12012` | Chat page + user accounts |
-| `pipelines` | built from `sources/Dockerfile.pipelines` | `http://localhost:12011` | The RAG/KG brain |
-
-Both ports are bound to `127.0.0.1`, so nothing is exposed to your network by default.
-`compose.yml` also contains two optional services, commented out: a local **Ollama**
-backend and an internal **auto-redeploy** webhook.
-
-## Repository layout
-
-```
-.
-├── compose.yml                     # The stack. Mounts ./dataset into the pipeline
-├── .env.example                    # Template for your secrets — copy to .env (Step 3)
-├── .gitignore                      # Keeps your data & secrets out of git
-├── data/                           # Chat history, accounts, index cache (gitignored)
-├── dataset/                        # 👉 YOUR DATA GOES HERE — any filenames (gitignored)
-│   ├── README.md                   # What each file type is used for
-│   ├── *.example.*                 # Small samples showing the formats
-│   └── kg_jsons/                   # Sample place taxonomy + filter vocabulary
-└── sources/
-    ├── build.sh                    # Optional: build the image by hand
-    ├── Dockerfile.pipelines        # How the pipelines image is built
-    └── pipelines/
-        ├── KGSearchCultureBot_v2.py    # Main pipeline (KG + hybrid RAG)
-        ├── SearchCultureBot.py         # Simpler RAG-only pipeline
-        ├── dataset_loader.py           # Scans dataset/ and sorts files by type
-        └── sc_kg_nl2cypher.py          # Natural language → Cypher + graph schema
-```
-
-## Every `.env` variable
-
-| Variable | Required | Meaning |
-|---|---|---|
-| `OPENAI_API_KEY` | ✅ | **Your own OpenAI key** — used for answers *and* embeddings |
-| `WEBUI_SECRET_KEY` | ✅ | Random secret signing login sessions (`openssl rand -hex 32`) |
-| `PIPELINES_API_KEY` | ✅ | Random token the chat page uses to call the bot (`openssl rand -hex 32`) |
-| `OPENAI_MODEL` | – | Used by the `CultureBot` pipeline only; set the main bot's model in the admin panel |
-| `OPENAI_BASE_URL` | – | Only for Azure OpenAI or an OpenAI-compatible proxy |
-| `NEO4J_URI` / `NEO4J_USER` / `NEO4J_PASSWORD` | for `kg`/`hybrid` | Your graph database connection |
-| `WEBUI_AUTH`, `ENABLE_SIGNUP`, `DEFAULT_USER_ROLE` | – | Login / signup behaviour (safe defaults already set) |
-| `WEBUI_SESSION_COOKIE_SECURE`, `WEBUI_SESSION_COOKIE_SAME_SITE` | – | Set `SECURE=true` when serving over HTTPS |
-| `RATE_LIMIT_ENABLED`, `RATE_LIMIT_REQUESTS_PER_MINUTE` | – | Throttling |
-| `ENABLE_COMMUNITY_SHARING`, `SAFE_MODE` | – | Open WebUI feature switches |
-| `OLLAMA_BASE_URL` | – | Only if you enable the optional `ollama` service |
-| `DEPLOY_AUTH_TOKEN` | – | Only if you enable the optional `deploy` service |
-
-## A note on cost
-
-Every question costs OpenAI credit, and the **first** question costs more: it embeds your
-entire corpus once. A large corpus with `text-embedding-3-large` can be significant — start
-with `text-embedding-3-small` (the default), or switch `EMBEDDING_MODEL` to
-`sentence-transformers/all-MiniLM-L6-v2` to embed locally for free. Keep the index cache
-(see Troubleshooting) so you only pay for embedding once.
-
-## Security
-
-- **Never commit `.env` or your real `dataset/` files.** Both are gitignored — run
-  `git status` before your first push to be sure.
-- **If a key was ever pasted into a file that got committed, rotate it.** Deleting it in a
-  later commit does not remove it from git history.
-- Ports are bound to `127.0.0.1`. To publish the bot, put a reverse proxy (Caddy, Nginx)
-  with TLS in front and set `WEBUI_SESSION_COOKIE_SECURE=true`.
-- Keep `DEFAULT_USER_ROLE=pending` so new sign-ups need your approval.
-- The Cypher the model generates is validated as read-only before it runs, but give the
-  bot a **read-only Neo4j user** anyway.
+</div>
