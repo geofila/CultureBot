@@ -4,7 +4,7 @@
 
 **Explore cultural heritage collections with grounded, source-linked answers.**
 
-<a href="https://culturebot.ails.ece.ntua.gr">
+<a href="">
   <img src="https://img.shields.io/badge/Live_demo-Open_CultureBot-1f5d4f?style=flat" height="30" alt="Demo">
 </a>
 <a href="#paper">
@@ -60,22 +60,21 @@ You can run CultureBot in three modes:
 |---|---|---:|---|
 | `rag` | FAISS semantic search + BM25, fused with Reciprocal Rank Fusion | No | Documents, catalogue text, reports, and a first local demo |
 | `kg` | Natural language → validated Cypher → graph records | Yes | Collections whose structured relationships are central |
-| `hybrid` | Knowledge graph + hybrid text retrieval in one grounded answer | Yes, with automatic RAG fallback | The full CultureBot experience |
+| `hybrid` | Knowledge graph + hybrid text retrieval in one grounded answer | Yes, with automatic RAG fallback | The full CultureBot |
 
 ## Try the demo
 
-- **Live demo:** [culturebot.ails.ece.ntua.gr](https://culturebot.ails.ece.ntua.gr)
 - **Project page:** [geofila.github.io/CultureBot](https://geofila.github.io/CultureBot/)
-- **Runnable code:** this `culture_deploy` branch
+
 
 Example questions for a Greek cultural collection:
 
 ```text
-Which marble sculptures in the collection belong to the Roman period?
+(EN) Which marble sculptures in the collection belong to the Roman period?
 
-Show me objects connected to Athens and explain how their dates differ.
+(EN) Show me objects connected to Athens and explain how their dates differ.
 
-Ποια αντικείμενα βρέθηκαν στην Πάτρα και χρονολογούνται στη Ρωμαϊκή περίοδο;
+(GR) Ποια αντικείμενα βρέθηκαν στην Πάτρα και χρονολογούνται στη Ρωμαϊκή περίοδο;
 ```
 
 ## How it works
@@ -150,21 +149,6 @@ No GPU is required with the default configuration. The first build usually takes
 git clone --branch culture_deploy --single-branch https://github.com/geofila/CultureBot.git
 cd CultureBot
 ```
-
-If you cloned the repository without `--branch`, switch explicitly:
-
-```bash
-git checkout culture_deploy
-```
-
-Confirm that you can see the deployment files:
-
-```bash
-git branch --show-current
-ls
-```
-
-The branch should be `culture_deploy`, and the directory should contain `compose.yml`, `.env.example`, `dataset/`, and `sources/`.
 
 ### 2. Create your environment file
 
@@ -447,8 +431,6 @@ Citation metadata, authors, venue, DOI, and a canonical BibTeX entry will be add
 
 <div align="center">
 
-**Bring your collection. Keep its structure. Let people ask better questions.**
-
-[Live demo](https://culturebot.ails.ece.ntua.gr) · [Project page](https://geofila.github.io/CultureBot/) · [Input formats](dataset/README.md)
+[Project page](https://geofila.github.io/CultureBot/) · [Input formats](dataset/README.md)
 
 </div>
