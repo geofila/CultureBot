@@ -48,11 +48,11 @@ services:
     ports:
       - "127.0.0.1:12011:9099"  # Bound to localhost only for security
     # ── Data volumes: BRING YOUR OWN DATA ───────────────────────────────────────
-    # This repo ships WITHOUT a dataset. Drop your own files into ./dataset/ — any
-    # filenames, subfolders welcome — and the pipeline works out what each one is from
-    # its type: .md/.markdown and .pdf are indexed for search, .jsonl/.ndjson and .json
-    # are read as {id, text} records, and a .json list of place records is used as the
-    # place taxonomy for the Knowledge Graph. Nothing to uncomment, nothing to rename.
+    # This repo ships with a small synthetic test dataset. Replace it or add your own
+    # files under ./dataset/ — filenames and subfolders are flexible — and the pipeline
+    # works out what each one is from its type: .md/.markdown and .pdf are indexed for
+    # search, .jsonl/.ndjson and .json are read as {id, text} records, and a .json list
+    # of place records is used as the place taxonomy for the Knowledge Graph.
     volumes:
       - ./dataset:/app/pipelines/dataset:ro
       # FAISS/BM25 index cache. Keeping it on the host means your corpus is embedded once
@@ -83,27 +83,3 @@ services:
   #   volumes:
   #     - ./data/ollama:/root/.ollama
   #   restart: unless-stopped
-
-  # ── Optional: internal auto-redeploy webhook (project-specific CI/CD) ─────────
-  # This service was used in the original private deployment to auto-redeploy on a
-  # push. It is tied to internal infrastructure (host paths, private registry) and
-  # is not needed to run the stack. Uncomment and adapt only if you replicate that
-  # setup, and set DEPLOY_AUTH_TOKEN in .env.
-  # deploy:
-  #   image: bitbool/docker-compose-deploy:2.4
-  #   privileged: true
-  #   environment:
-  #     - AUTH_TOKEN=${DEPLOY_AUTH_TOKEN:?set DEPLOY_AUTH_TOKEN in .env}
-  #     - COMPOSE_FILE=/data/searchculturebot/compose.yml
-  #   ports:
-  #     - 127.0.0.1:9998:9999
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock
-  #     - /etc/docker/:/etc/docker/
-  #     - /root/.docker:/root/.docker
-  #     - /data/searchculturebot:/data/searchculturebot:rw
-  #   restart: unless-stopped
-  #   logging:
-  #     driver: syslog
-  #     options:
-  #       tag: docker-searchculturebot-deploy

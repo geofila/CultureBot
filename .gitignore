@@ -4,7 +4,9 @@
 
 # ── Secrets ──────────────────────────────────────────────────────────────────
 .env
+.env.*
 *.env
+*.env.*
 !.env.example
 
 # A live pipeline valves file can capture per-deployment tweaks/credentials — never
@@ -21,6 +23,7 @@ venv/
 # ── Confidential RAG / KG source data ────────────────────────────────────────
 # Users must supply their own dataset (see dataset/README.md). Everything in
 # dataset/ is ignored EXCEPT the docs and the *.example.* format samples.
+/dataset/*
 !/dataset/.gitkeep
 !/dataset/README.md
 !/dataset/*.example.jsonl

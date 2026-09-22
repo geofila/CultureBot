@@ -4,7 +4,7 @@
 
 **Explore cultural heritage collections with grounded, source-linked answers.**
 
-<a href="">
+<a href="https://geofila.github.io/CultureBot/">
   <img src="https://img.shields.io/badge/Live_demo-Open_CultureBot-1f5d4f?style=flat" height="30" alt="Demo">
 </a>
 <a href="#paper">
@@ -32,6 +32,7 @@ The included examples use the visual language of Ancient Greek monuments and mus
 - [Why CultureBot?](#why-culturebot)
 - [Try the demo](#try-the-demo)
 - [How it works](#how-it-works)
+- [Expert evaluation](#expert-evaluation)
 - [Bring your own collection](#bring-your-own-collection)
 - [Quick start](#quick-start)
 - [Configure CultureBot](#configure-culturebot)
@@ -82,6 +83,15 @@ Example questions for a Greek cultural collection:
 ![CultureBot schema](images/culturebot_overview.drawio.png)
 
 The browser interface is provided by [Open WebUI](https://github.com/open-webui/open-webui). It talks to an [Open WebUI Pipelines](https://github.com/open-webui/pipelines) service that loads your collection, builds the search indexes, optionally queries Neo4j, and asks the configured language model to compose the final answer.
+
+## Expert evaluation
+
+CultureBot was evaluated by six cultural heritage specialists using 55 queries
+grounded in 12 expert-defined personas. The personas cover research,
+collection work, education, tourism, journalism, creative practice, and
+sensitive heritage use cases. See the [evaluation documentation](evaluation/README.md)
+for the persona descriptions, study protocol, rubric, representative
+information needs, results summary, and citation guidance.
 
 ## Bring your own collection
 
@@ -161,7 +171,7 @@ openssl rand -hex 32
 Open `.env` and set these three required values:
 
 ```ini
-OPENAI_API_KEY=sk-proj-REPLACE-WITH-YOUR-KEY
+OPENAI_API_KEY=REPLACE-WITH-YOUR-OPENAI-API-KEY
 WEBUI_SECRET_KEY=REPLACE-WITH-THE-FIRST-RANDOM-STRING
 PIPELINES_API_KEY=REPLACE-WITH-THE-SECOND-RANDOM-STRING
 ```
@@ -327,7 +337,8 @@ The index fingerprint includes the selected embedding settings and source files.
 │   ├── *.example.*                   # Format examples, not indexed
 │   └── kg_jsons/                     # Example taxonomy/filter JSON
 ├── data/                             # Runtime data and index cache, ignored by Git
-├── docs/assets/culturebot-hero.png   # README hero artwork
+├── evaluation/README.md              # Personas and expert-evaluation protocol
+├── images/                           # README artwork and system overview
 ├── rebuild.sh
 └── sources/
     ├── Dockerfile.pipelines
@@ -425,12 +436,17 @@ CultureBot accompanies the demo paper:
 
 The work presents a repository-independent framework for natural-language exploration of cultural heritage collections through graph-guided and textual retrieval with source-linked generation. The current demonstration is instantiated on [SearchCulture](https://searchculture.gr/) data for movable monuments from the Hellenic Ministry of Culture, while this repository packages the pipeline so it can be reused with other collections.
 
+The expert study used 12 personas and 55 queries to compare the graph-guided
+system with two general-purpose assistants and a non-graph CultureBot variant.
+The complete public-facing study description is available in the
+[evaluation documentation](evaluation/README.md).
+
 Citation metadata, authors, venue, DOI, and a canonical BibTeX entry will be added when the paper is available. Until then, please link to this repository and the [project page](https://geofila.github.io/CultureBot/).
 
 ---
 
 <div align="center">
 
-[Project page](https://geofila.github.io/CultureBot/) · [Input formats](dataset/README.md)
+[Project page](https://geofila.github.io/CultureBot/) · [Evaluation](evaluation/README.md) · [Input formats](dataset/README.md)
 
 </div>

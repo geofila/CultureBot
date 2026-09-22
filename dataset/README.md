@@ -7,9 +7,10 @@ startup the pipeline scans the whole folder and decides what each file is from i
 `compose.yml` already mounts this folder read-only at `/app/pipelines/dataset` — there is
 nothing to uncomment and nothing to rename.
 
-The real dataset this project was built on is confidential and is **not** included here.
-Everything you add is gitignored; only this README and the `*.example.*` samples are
-tracked.
+The repository includes a small synthetic collection for end-to-end testing;
+collection-specific production data is **not** included. New files added here are
+gitignored by default. This README, the documented `*.example.*` formats, and the
+synthetic test fixtures are intentionally tracked.
 
 ## What happens to each file type
 

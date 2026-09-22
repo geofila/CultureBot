@@ -2,7 +2,8 @@
 
 The `dataset/` folder currently holds a small **fake** collection — the "Fake Museum of
 Example Antiquities" — so you can check the whole pipeline end to end before you load your
-real data. All of it is gitignored, so none of it will be pushed.
+real data. These synthetic fixtures are intentionally tracked so a fresh clone can be
+tested immediately; do not replace them with private collection data.
 
 | File | Type | What is in it |
 |---|---|---|
