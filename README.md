@@ -296,6 +296,10 @@ You may override the mode for a conversation by adding one of these tags to its 
 
 ## Use a Neo4j knowledge graph
 
+For a tutorial on ingesting compact EDM-style JSON-LD into the graph expected
+by CultureBot, including verification queries and known limitations, see the
+[Neo4j ingestion guide](knowledge_graph/README.md).
+
 CultureBot's NL-to-Cypher prompt targets a specific cultural-heritage schema. Before connecting a different graph, review the complete schema and examples at the top of [`sources/pipelines/sc_kg_nl2cypher.py`](sources/pipelines/sc_kg_nl2cypher.py).
 
 The expected graph includes entities such as:
@@ -308,7 +312,7 @@ The expected graph includes entities such as:
 
 and relationships including `LOCATED_IN`, `HAS_TEMPORAL_REFERENCE`, `FROM_PERIOD`, `HAS_TYPE`, `HAS_SUBJECT`, and `MADE_OF`.
 
-Generated Cypher is validated as read-only before execution. For defense in depth, connect CultureBot with a Neo4j user that has read-only permissions.
+Generated Cypher is checked against read-only rules before execution. Where your Neo4j edition supports it, connect CultureBot with a read-only account as an additional safeguard.
 
 ## Everyday commands
 
@@ -339,6 +343,7 @@ The index fingerprint includes the selected embedding settings and source files.
 ├── data/                             # Runtime data and index cache, ignored by Git
 ├── evaluation/README.md              # Personas and expert-evaluation protocol
 ├── images/                           # README artwork and system overview
+├── knowledge_graph/                   # EDM-style Neo4j ingestion guide and scripts
 ├── rebuild.sh
 └── sources/
     ├── Dockerfile.pipelines

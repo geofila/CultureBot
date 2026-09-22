@@ -1,0 +1,459 @@
+{
+    "@graph": [
+        {
+            "@id": "http://semantics.gr/authorities/ekt-item-types/arxaiologiko-eyrhma",
+            "@type": "skos:Concept",
+            "broader": "http://semantics.gr/authorities/ekt-item-types/trisdiastata-antikeimena--erga-texnhs",
+            "exactMatch": "http://vocab.getty.edu/aat/300234110",
+            "prefLabel": [
+                {
+                    "@language": "en",
+                    "@value": "Archaeological object"
+                },
+                {
+                    "@language": "el",
+                    "@value": "Αρχαιολογικό αντικείμενο"
+                }
+            ]
+        },
+        {
+            "@id": "http://semantics.gr/authorities/ekt-item-types/glypto",
+            "@type": "skos:Concept",
+            "broader": "http://semantics.gr/authorities/ekt-item-types/trisdiastata-antikeimena--erga-texnhs",
+            "exactMatch": "http://vocab.getty.edu/aat/300047090",
+            "narrower": "http://semantics.gr/authorities/ekt-item-types/eidwlio",
+            "prefLabel": [
+                {
+                    "@language": "en",
+                    "@value": "Sculpture"
+                },
+                {
+                    "@language": "el",
+                    "@value": "Γλυπτό"
+                }
+            ]
+        },
+        {
+            "@id": "http://semantics.gr/authorities/ekt-unesco/1108782792",
+            "@type": "skos:Concept",
+            "broader": "http://semantics.gr/authorities/ekt-unesco/560215094",
+            "exactMatch": "http://vocabularies.unesco.org/thesaurus/concept2527",
+            "prefLabel": [
+                {
+                    "@language": "en",
+                    "@value": "Archaeological objects"
+                },
+                {
+                    "@language": "el",
+                    "@value": "Αρχαιολογικά αντικείμενα"
+                }
+            ]
+        },
+        {
+            "@id": "http://semantics.gr/authorities/ekt-unesco/1174652428",
+            "@type": "skos:Concept",
+            "broader": "http://semantics.gr/authorities/ekt-unesco/1057926131",
+            "exactMatch": "http://vocabularies.unesco.org/thesaurus/concept10193",
+            "prefLabel": [
+                {
+                    "@language": "en",
+                    "@value": "Sculpture"
+                },
+                {
+                    "@language": "el",
+                    "@value": "Γλυπτική"
+                }
+            ]
+        },
+        {
+            "@id": "http://semantics.gr/authorities/ekt-unesco/1220358042",
+            "@type": "skos:Concept",
+            "broader": "http://semantics.gr/authorities/ekt-unesco/136488168",
+            "exactMatch": "http://vocabularies.unesco.org/thesaurus/concept2328",
+            "prefLabel": [
+                {
+                    "@language": "en",
+                    "@value": "Antiquities"
+                },
+                {
+                    "@language": "el",
+                    "@value": "Αρχαιότητες"
+                }
+            ]
+        },
+        {
+            "@id": "http://semantics.gr/authorities/ekt-unesco/77238",
+            "@type": "skos:Concept",
+            "broader": "http://semantics.gr/authorities/ekt-unesco/83014",
+            "exactMatch": "http://vocabularies.unesco.org/thesaurus/concept10732",
+            "narrower": "http://semantics.gr/authorities/ekt-unesco/1273096335",
+            "prefLabel": [
+                {
+                    "@language": "en",
+                    "@value": "Men"
+                },
+                {
+                    "@language": "el",
+                    "@value": "Άνδρες"
+                }
+            ]
+        },
+        {
+            "@id": "http://semantics.gr/authorities/ekt-unesco/99593784",
+            "@type": "skos:Concept",
+            "broader": "http://semantics.gr/authorities/ekt-unesco/1522262796",
+            "exactMatch": "http://vocabularies.unesco.org/thesaurus/concept2336",
+            "prefLabel": [
+                {
+                    "@language": "en",
+                    "@value": "Antiquity"
+                },
+                {
+                    "@language": "el",
+                    "@value": "Αρχαιότητα"
+                }
+            ]
+        },
+        {
+            "@id": "http://semantics.gr/authorities/geonames-places-earth/734652",
+            "@type": "edm:Place",
+            "isPartOf": "http://semantics.gr/authorities/geonames-places-earth/735540",
+            "sameAs": "https://sws.geonames.org/734652/",
+            "lat": "41.0116",
+            "long": "24.2843",
+            "altLabel": [
+                {
+                    "@language": "el",
+                    "@value": "Αρχαιολογικός Χώρος Φιλίππων"
+                },
+                {
+                    "@language": "el",
+                    "@value": "Φίλιπποι, Νομός Καβάλας"
+                },
+                {
+                    "@language": "en",
+                    "@value": "Fílippoi,  Kavala"
+                },
+                {
+                    "@language": "en",
+                    "@value": "Fílippoi"
+                },
+                {
+                    "@language": "el",
+                    "@value": "Φίλιπποι Καβάλας"
+                },
+                {
+                    "@language": "en",
+                    "@value": "Fílippoi, Archaeological site"
+                },
+                {
+                    "@language": "el",
+                    "@value": "Φίλιπποι, Αρχαιολογικός xώρος"
+                },
+                {
+                    "@language": "el",
+                    "@value": "Φίλιπποι"
+                },
+                {
+                    "@language": "en",
+                    "@value": "Philippi, Archaeological site"
+                },
+                {
+                    "@language": "en",
+                    "@value": "Fílippoi / Philippi,  Kavala"
+                }
+            ],
+            "prefLabel": [
+                {
+                    "@language": "en",
+                    "@value": "Fílippoi"
+                },
+                {
+                    "@language": "el",
+                    "@value": "Φίλιπποι"
+                }
+            ]
+        },
+        {
+            "@id": "http://semantics.gr/authorities/historical-periods/rwmaikh-aytokratorikh-periodos",
+            "@type": "edm:TimeSpan",
+            "begin": {
+                "@language": "en",
+                "@value": "-0031"
+            },
+            "end": {
+                "@language": "en",
+                "@value": "0324"
+            },
+            "altLabel": [
+                {
+                    "@language": "el",
+                    "@value": "31 π.Χ - 324 μ.Χ."
+                },
+                {
+                    "@language": "en",
+                    "@value": "31 B.C. - 324 A.D."
+                },
+                "Ρωμαϊκοί Χρόνοι",
+                {
+                    "@language": "el",
+                    "@value": "Ρωμαϊκή περίοδος"
+                },
+                {
+                    "@language": "el",
+                    "@value": "Ρωμαϊκή αυτοκρατορική περίοδος"
+                }
+            ],
+            "prefLabel": [
+                {
+                    "@language": "el",
+                    "@value": "Ρωμαϊκή περίοδος"
+                },
+                {
+                    "@language": "en",
+                    "@value": "Roman Period"
+                }
+            ]
+        },
+        {
+            "@id": "http://semantics.gr/authorities/thematic_tags/2104194820",
+            "@type": "skos:Concept",
+            "broadMatch": "http://semantics.gr/authorities/ekt-unesco/136488168",
+            "exactMatch": "http://vocab.getty.edu/aat/300404114",
+            "narrower": [
+                "http://semantics.gr/authorities/thematic_tags/994330007",
+                "http://semantics.gr/authorities/thematic_tags/994184059",
+                "http://semantics.gr/authorities/thematic_tags/874719385"
+            ],
+            "prefLabel": [
+                {
+                    "@language": "en",
+                    "@value": "Human figure"
+                },
+                {
+                    "@language": "el",
+                    "@value": "Ανθρώπινη φιγούρα"
+                }
+            ]
+        },
+        {
+            "@id": "https://www.searchculture.gr/aggregator/edm/aggregation/provider/000150-688002%231",
+            "@type": "ore:Aggregation",
+            "aggregatedCHO": "https://www.searchculture.gr/aggregator/edm/mnam/000150-688002",
+            "dataProvider": "Υπουργείο Πολιτισμού - Διεύθυνση Διαχείρισης Εθνικού Αρχείου Μνημείων",
+            "hasView": [
+                "https://nationalarchive.culture.gr/image-api/deamImages/688002/12_12_L343_291116_G_600_3.jpg",
+                "https://nationalarchive.culture.gr/image-api/deamImages/688002/12_12_L343_291116_G_600_2.jpg"
+            ],
+            "isShownAt": "https://nationalarchive.culture.gr/en/exhibits/explore/view?id=688002",
+            "isShownBy": "https://nationalarchive.culture.gr/image-api/deamImages/688002/12_12_L343_291116_G_600_1.jpg",
+            "object": "https://www.searchculture.gr/aggregator/thumbnails/edm-record/mnam/000150-688002",
+            "provider": "Greek Aggregator SearchCulture.gr | National Documentation Centre (EKT)",
+            "rights": "http://creativecommons.org/licenses/by-nc/4.0/"
+        },
+        {
+            "@id": "https://www.searchculture.gr/aggregator/edm/mnam/000150-688002",
+            "@type": "edm:ProvidedCHO",
+            "description": {
+                "@language": "el",
+                "@value": "Ιδεαλιστική κεφαλή νεαρού Σατύρου, ρωμαϊκό αντίγραφο του 2ου αι. μ.Χ. Πιθανότατα αντιγράφει κλασικό πρότυπο, και συγκεκριμένα το γνωστό από πολλά αντίγραφα \"Αναπαυόμενο Σάτυρο\" του Πραξιτέλη."
+            },
+            "identifier": "QB4YJH",
+            "source": [
+                {
+                    "@language": "el",
+                    "@value": "Εφορεία Αρχαιοτήτων Καβάλας"
+                },
+                {
+                    "@language": "en",
+                    "@value": "Ephorate of Antiquities of Kavala - Thasos"
+                }
+            ],
+            "subject": [
+                "http://semantics.gr/authorities/ekt-unesco/99593784",
+                "http://semantics.gr/authorities/ekt-unesco/77238",
+                "http://semantics.gr/authorities/thematic_tags/2104194820",
+                "http://semantics.gr/authorities/ekt-unesco/1174652428",
+                "http://semantics.gr/authorities/ekt-unesco/1220358042",
+                "http://semantics.gr/authorities/ekt-unesco/1108782792"
+            ],
+            "title": [
+                {
+                    "@language": "en",
+                    "@value": "Head of statue of Satyr"
+                },
+                {
+                    "@language": "el",
+                    "@value": "Κεφαλή αγάλματος Σατύρου"
+                }
+            ],
+            "type": [
+                "http://semantics.gr/authorities/ekt-item-types/glypto",
+                "http://semantics.gr/authorities/ekt-item-types/arxaiologiko-eyrhma"
+            ],
+            "dc:type": [
+                {
+                    "@language": "el",
+                    "@value": "Αρχαιολογικό αντικείμενο"
+                },
+                {
+                    "@language": "en",
+                    "@value": "Statue of a male figure"
+                },
+                {
+                    "@language": "el",
+                    "@value": "Άγαλμα ανδρικής μορφής"
+                }
+            ],
+            "created": "101 AD - 200 AD",
+            "extent": {
+                "@language": "el",
+                "@value": "Ύψος: 25.0 εκ."
+            },
+            "medium": [
+                {
+                    "@language": "el",
+                    "@value": "Μάρμαρο"
+                },
+                {
+                    "@language": "en",
+                    "@value": "Marble"
+                }
+            ],
+            "spatial": "http://semantics.gr/authorities/geonames-places-earth/734652",
+            "dcterms:spatial": {
+                "@language": "el",
+                "@value": "Αρχαιολογικός Χώρος Φιλίππων"
+            },
+            "temporal": "http://semantics.gr/authorities/historical-periods/rwmaikh-aytokratorikh-periodos",
+            "edm:type": "IMAGE"
+        }
+    ],
+    "@context": {
+        "exactMatch": {
+            "@id": "http://www.w3.org/2004/02/skos/core#exactMatch",
+            "@type": "@id"
+        },
+        "broader": {
+            "@id": "http://www.w3.org/2004/02/skos/core#broader",
+            "@type": "@id"
+        },
+        "prefLabel": {
+            "@id": "http://www.w3.org/2004/02/skos/core#prefLabel"
+        },
+        "subject": {
+            "@id": "http://purl.org/dc/elements/1.1/subject",
+            "@type": "@id"
+        },
+        "spatial": {
+            "@id": "http://purl.org/dc/terms/spatial",
+            "@type": "@id"
+        },
+        "created": {
+            "@id": "http://purl.org/dc/terms/created"
+        },
+        "title": {
+            "@id": "http://purl.org/dc/elements/1.1/title"
+        },
+        "type": {
+            "@id": "http://purl.org/dc/elements/1.1/type",
+            "@type": "@id"
+        },
+        "source": {
+            "@id": "http://purl.org/dc/elements/1.1/source"
+        },
+        "identifier": {
+            "@id": "http://purl.org/dc/elements/1.1/identifier"
+        },
+        "temporal": {
+            "@id": "http://purl.org/dc/terms/temporal",
+            "@type": "@id"
+        },
+        "description": {
+            "@id": "http://purl.org/dc/elements/1.1/description"
+        },
+        "medium": {
+            "@id": "http://purl.org/dc/terms/medium"
+        },
+        "extent": {
+            "@id": "http://purl.org/dc/terms/extent"
+        },
+        "altLabel": {
+            "@id": "http://www.w3.org/2004/02/skos/core#altLabel"
+        },
+        "begin": {
+            "@id": "http://www.europeana.eu/schemas/edm/begin"
+        },
+        "end": {
+            "@id": "http://www.europeana.eu/schemas/edm/end"
+        },
+        "rights": {
+            "@id": "http://www.europeana.eu/schemas/edm/rights",
+            "@type": "@id"
+        },
+        "object": {
+            "@id": "http://www.europeana.eu/schemas/edm/object",
+            "@type": "@id"
+        },
+        "hasView": {
+            "@id": "http://www.europeana.eu/schemas/edm/hasView",
+            "@type": "@id"
+        },
+        "dataProvider": {
+            "@id": "http://www.europeana.eu/schemas/edm/dataProvider"
+        },
+        "isShownBy": {
+            "@id": "http://www.europeana.eu/schemas/edm/isShownBy",
+            "@type": "@id"
+        },
+        "isShownAt": {
+            "@id": "http://www.europeana.eu/schemas/edm/isShownAt",
+            "@type": "@id"
+        },
+        "provider": {
+            "@id": "http://www.europeana.eu/schemas/edm/provider"
+        },
+        "aggregatedCHO": {
+            "@id": "http://www.europeana.eu/schemas/edm/aggregatedCHO",
+            "@type": "@id"
+        },
+        "narrower": {
+            "@id": "http://www.w3.org/2004/02/skos/core#narrower",
+            "@type": "@id"
+        },
+        "broadMatch": {
+            "@id": "http://www.w3.org/2004/02/skos/core#broadMatch",
+            "@type": "@id"
+        },
+        "isPartOf": {
+            "@id": "http://purl.org/dc/terms/isPartOf",
+            "@type": "@id"
+        },
+        "long": {
+            "@id": "http://www.w3.org/2003/01/geo/wgs84_pos#long"
+        },
+        "sameAs": {
+            "@id": "http://www.w3.org/2002/07/owl#sameAs",
+            "@type": "@id"
+        },
+        "lat": {
+            "@id": "http://www.w3.org/2003/01/geo/wgs84_pos#lat"
+        },
+        "ore": "http://www.openarchives.org/ore/terms/",
+        "owl": "http://www.w3.org/2002/07/owl#",
+        "svcs": "http://rdfs.org/sioc/services#",
+        "skos": "http://www.w3.org/2004/02/skos/core#",
+        "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+        "rdaGr2": "http://rdvocab.info/ElementsGr2/",
+        "edm": "http://www.europeana.eu/schemas/edm/",
+        "ekt": "https://www.semantics.gr/authorities/schemanamespaces/ekt#",
+        "doap": "http://usefulinc.com/ns/doap#",
+        "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+        "xalan": "http://xml.apache.org/xalan",
+        "dcterms": "http://purl.org/dc/terms/",
+        "wgs84_pos": "http://www.w3.org/2003/01/geo/wgs84_pos#",
+        "foaf": "http://xmlns.com/foaf/0.1/",
+        "crm": "http://www.cidoc-crm.org/rdfs/cidoc_crm_v5.0.2_english_label.rdfs#",
+        "dc": "http://purl.org/dc/elements/1.1/"
+    }
+}

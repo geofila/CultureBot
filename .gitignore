@@ -39,6 +39,9 @@ venv/
 /data/*
 !/data/.gitkeep
 
+# Neo4j import inputs, checkpoints, failed records, and authority responses.
+/knowledge_graph/data/
+
 # ── Pipeline build/index caches ──────────────────────────────────────────────
 **/cache/
 *.faiss
